@@ -176,7 +176,4 @@ The software generates a detailed technical text report (printed to stdout or `o
 
 **License:** Open Source (MIT or equivalent).
 
-
 **Disclaimer:** This software is an engineering aid and does not replace physical model testing. The authors assume no liability for the structural failure of breakwaters designed using these codes. Engineering judgment must be exercised, particularly regarding the specific hydraulic boundary conditions and material quality.
-
-
