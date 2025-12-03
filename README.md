@@ -6,7 +6,7 @@
 This repository contains a comprehensive computational suite designed for the hydraulic design of coastal breakwater armor layers. The software implements advanced empirical formulae to dimension artificial concrete units, specifically **Simple Cubes** (Van der Meer) and **Antifer Blocks** (Chegini & Aghtouman).
 
 A distinguishing feature of this tool is its **Iso-Geometric Design Philosophy** for the breakwater head. Rather than increasing the nominal diameter ($D_n$) of armor units at the roundhead—which necessitates different casting moulds, storage logistics, and crane requirements—this calculator solves for the required **increase in concrete density** ($\rho_c$). This allows the Trunk and the Head to be constructed using geometrically identical units (same mould), optimizing construction efficiency while meeting strict safety factors via material density adjustments.
-
+<img width="1776" height="2208" alt="figure1" src="https://github.com/user-attachments/assets/ed4d812c-5411-417f-b615-9bc9adb434f7" />
 ---
 
 ## 2. Theoretical Framework & Methodology
@@ -175,5 +175,6 @@ The software generates a detailed technical text report (printed to stdout or `o
 ## 7. License & Disclaimer
 
 **License:** Open Source (MIT or equivalent).
+
 
 **Disclaimer:** This software is an engineering aid and does not replace physical model testing. The authors assume no liability for the structural failure of breakwaters designed using these codes. Engineering judgment must be exercised, particularly regarding the specific hydraulic boundary conditions and material quality.
