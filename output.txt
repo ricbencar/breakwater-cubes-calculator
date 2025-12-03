@@ -1,0 +1,280 @@
+================================================================================
+    TECHNICAL REPORT: BREAKWATER ARMOR & UNDERLAYER DESIGN                         
+================================================================================
+Methodology: Van Der Meer (1988a) - Cubes (Slope 2.0:1)
+--------------------------------------------------------------------------------
+1. INPUT PARAMETERS
+   Hs (Sigificant Wave Height)         : 10.00 m
+   Tm (Mean Wave Period)               : 13.00 s
+   Storm Duration (h)                  : 12.00 h
+   Nod (Damage)                        : 1.00
+   Wc Trunk (Concrete Spec. Weight)    : 24.00 kN/m3
+   Ww (Water Specific Weight)          : 10.05 kN/m3
+   Relative Density D=(Wc/Ww)-1        : 1.3881
+   Structure Slope (TRUNK & HEAD)      : 2.0:1
+   Porosity (Cubes)                    : 40%
+   Porosity (Rock Layer)               : 25%
+--------------------------------------------------------------------------------
+2. INTERMEDIATE PARAMETERS
+   Wave Length (L0)                    : 263.77 m
+   wave number (k0 = 2*pi/L0)          : 0.0238
+   wave steepness (s0m = Hs/L0)        : 0.0379
+   Number of waves (Nz)                : 3323
+   Stability Number TRUNK (Ns)         : 2.4250
+   Stability Number HEAD (Ns)          : 2.1184
+--------------------------------------------------------------------------------
+3. ARMOR LAYER RESULTS - TRUNK
+   BLOCK WEIGHT (W)                    : 629.31 kN
+   Mass (ton)                          : 64.17 t
+   Nominal Diameter (Dn)               : 2.971 m
+   Cube Height (H)                     : 2.947 m
+   Cube Top Width (B)                  : 2.962 m
+   Cube Base Width (A)                 : 3.200 m
+   KD_TRUNK (Equivalent)               : 7.13
+   Double Layer Thickness (r1)         : 5.94 m
+   Packing Density, d [units/100m2]    : 13.60
+
+4. UNDERLAYER RESULTS - TRUNK
+   Theoretical Target (W/10)           : 62.93 kN
+   Adopted rock grading                : EN 13383 HMA 6-10 ton
+   Grading Min (Lower Limit)           : 58.84 kN
+   Grading Max (Upper Limit)           : 98.07 kN
+   Mean Weight (Used for thickness)    : 78.45 kN
+   Nominal Diameter (Dn_rock)          : 1.436 m
+   Double Layer Thickness (r2)         : 2.87 m
+   Packing Density, f2 [rocks/100m2]   : 72.75
+--------------------------------------------------------------------------------
+5. ARMOR LAYER RESULTS - HEAD (High Density)
+   *Maintains same Dn and Slope as Trunk*
+   Stability Ratio (Kd_T/Kd_H)         : 1.50
+   Nominal Diameter (Dn)               : 2.971 m
+   Cube Height (H)                     : 2.947 m
+   Cube Top width (B)                  : 2.962 m
+   Cube Base Width (A)                 : 3.200 m
+   KD_HEAD (Equivalent)                : 4.75
+   Required Concrete Density (Wc)      : 26.02 kN/m3
+   BLOCK WEIGHT (W)                    : 682.25 kN
+   Mass (ton)                          : 69.57 t
+   Packing Density, d [units/100m2]    : 13.60
+
+6. UNDERLAYER RESULTS - HEAD
+   Theoretical Target (W/10)           : 68.22 kN
+   Adopted rock grading                : EN 13383 HMA 6-10 ton
+   Grading Min (Lower Limit)           : 58.84 kN
+   Grading Max (Upper Limit)           : 98.07 kN
+   Mean Weight (Used for thickness)    : 78.45 kN
+   Nominal Diameter (Dn_rock)          : 1.436 m
+   Double Layer Thickness (r2)         : 2.87 m
+   Packing Density, f2 [rocks/100m2]   : 72.75
+================================================================================
+
+================================================================================
+    TECHNICAL REPORT: BREAKWATER ARMOR & UNDERLAYER DESIGN                         
+================================================================================
+Methodology: Van Der Meer (1988a) - Cubes (Slope 1.5:1)
+--------------------------------------------------------------------------------
+1. INPUT PARAMETERS
+   Hs (Sigificant Wave Height)         : 10.00 m
+   Tm (Mean Wave Period)               : 13.00 s
+   Storm Duration (h)                  : 12.00 h
+   Nod (Damage)                        : 1.00
+   Wc Trunk (Concrete Spec. Weight)    : 24.00 kN/m3
+   Ww (Water Specific Weight)          : 10.05 kN/m3
+   Relative Density D=(Wc/Ww)-1        : 1.3881
+   Structure Slope (TRUNK & HEAD)      : 1.5:1
+   Porosity (Cubes)                    : 40%
+   Porosity (Rock Layer)               : 25%
+--------------------------------------------------------------------------------
+2. INTERMEDIATE PARAMETERS
+   Wave Length (L0)                    : 263.77 m
+   wave number (k0 = 2*pi/L0)          : 0.0238
+   wave steepness (s0m = Hs/L0)        : 0.0379
+   Number of waves (Nz)                : 3323
+   Stability Number TRUNK (Ns)         : 2.2032
+   Stability Number HEAD (Ns)          : 1.9247
+--------------------------------------------------------------------------------
+3. ARMOR LAYER RESULTS - TRUNK
+   BLOCK WEIGHT (W)                    : 839.08 kN
+   Mass (ton)                          : 85.56 t
+   Nominal Diameter (Dn)               : 3.270 m
+   Cube Height (H)                     : 3.243 m
+   Cube Top Width (B)                  : 3.260 m
+   Cube Base Width (A)                 : 3.522 m
+   KD_TRUNK (Equivalent)               : 7.13
+   Double Layer Thickness (r1)         : 6.54 m
+   Packing Density, d [units/100m2]    : 11.22
+
+4. UNDERLAYER RESULTS - TRUNK
+   Theoretical Target (W/10)           : 83.91 kN
+   Adopted rock grading                : EN 13383 HMA 6-10 ton
+   Grading Min (Lower Limit)           : 58.84 kN
+   Grading Max (Upper Limit)           : 98.07 kN
+   Mean Weight (Used for thickness)    : 78.45 kN
+   Nominal Diameter (Dn_rock)          : 1.436 m
+   Double Layer Thickness (r2)         : 2.87 m
+   Packing Density, f2 [rocks/100m2]   : 72.75
+--------------------------------------------------------------------------------
+5. ARMOR LAYER RESULTS - HEAD (High Density)
+   *Maintains same Dn and Slope as Trunk*
+   Stability Ratio (Kd_T/Kd_H)         : 1.50
+   Nominal Diameter (Dn)               : 3.270 m
+   Cube Height (H)                     : 3.243 m
+   Cube Top width (B)                  : 3.260 m
+   Cube Base Width (A)                 : 3.522 m
+   KD_HEAD (Equivalent)                : 4.75
+   Required Concrete Density (Wc)      : 26.02 kN/m3
+   BLOCK WEIGHT (W)                    : 909.66 kN
+   Mass (ton)                          : 92.76 t
+   Packing Density, d [units/100m2]    : 11.22
+
+6. UNDERLAYER RESULTS - HEAD
+   Theoretical Target (W/10)           : 90.97 kN
+   Adopted rock grading                : EN 13383 HMA 6-10 ton
+   Grading Min (Lower Limit)           : 58.84 kN
+   Grading Max (Upper Limit)           : 98.07 kN
+   Mean Weight (Used for thickness)    : 78.45 kN
+   Nominal Diameter (Dn_rock)          : 1.436 m
+   Double Layer Thickness (r2)         : 2.87 m
+   Packing Density, f2 [rocks/100m2]   : 72.75
+================================================================================
+
+================================================================================
+    TECHNICAL REPORT: BREAKWATER ARMOR & UNDERLAYER DESIGN                         
+================================================================================
+Methodology: Chegini-Aghtouman (2006) - Antifer (Slope 2:1)
+--------------------------------------------------------------------------------
+1. INPUT PARAMETERS
+   Hs (Sigificant Wave Height)         : 10.00 m
+   Tm (Mean Wave Period)               : 13.00 s
+   Storm Duration (h)                  : 12.00 h
+   Nod (Damage)                        : 1.00
+   Wc Trunk (Concrete Spec. Weight)    : 24.00 kN/m3
+   Ww (Water Specific Weight)          : 10.05 kN/m3
+   Relative Density D=(Wc/Ww)-1        : 1.3881
+   Structure Slope (TRUNK & HEAD)      : 2.0:1
+   Porosity (Cubes)                    : 40%
+   Porosity (Rock Layer)               : 25%
+--------------------------------------------------------------------------------
+2. INTERMEDIATE PARAMETERS
+   Wave Length (L0)                    : 263.77 m
+   wave number (k0 = 2*pi/L0)          : 0.0238
+   wave steepness (s0m = Hs/L0)        : 0.0379
+   Number of waves (Nz)                : 3323
+   Stability Number TRUNK (Ns)         : 2.2870
+   Stability Number HEAD (Ns)          : 1.9979
+--------------------------------------------------------------------------------
+3. ARMOR LAYER RESULTS - TRUNK
+   BLOCK WEIGHT (W)                    : 750.25 kN
+   Mass (ton)                          : 76.50 t
+   Nominal Diameter (Dn)               : 3.150 m
+   Cube Height (H)                     : 3.125 m
+   Cube Top Width (B)                  : 3.140 m
+   Cube Base Width (A)                 : 3.393 m
+   KD_TRUNK (Equivalent)               : 5.98
+   Double Layer Thickness (r1)         : 6.30 m
+   Packing Density, d [units/100m2]    : 12.09
+
+4. UNDERLAYER RESULTS - TRUNK
+   Theoretical Target (W/10)           : 75.02 kN
+   Adopted rock grading                : EN 13383 HMA 6-10 ton
+   Grading Min (Lower Limit)           : 58.84 kN
+   Grading Max (Upper Limit)           : 98.07 kN
+   Mean Weight (Used for thickness)    : 78.45 kN
+   Nominal Diameter (Dn_rock)          : 1.436 m
+   Double Layer Thickness (r2)         : 2.87 m
+   Packing Density, f2 [rocks/100m2]   : 72.75
+--------------------------------------------------------------------------------
+5. ARMOR LAYER RESULTS - HEAD (High Density)
+   *Maintains same Dn and Slope as Trunk*
+   Stability Ratio (Kd_T/Kd_H)         : 1.50
+   Nominal Diameter (Dn)               : 3.150 m
+   Cube Height (H)                     : 3.125 m
+   Cube Top width (B)                  : 3.140 m
+   Cube Base Width (A)                 : 3.393 m
+   KD_HEAD (Equivalent)                : 3.99
+   Required Concrete Density (Wc)      : 26.02 kN/m3
+   BLOCK WEIGHT (W)                    : 813.35 kN
+   Mass (ton)                          : 82.94 t
+   Packing Density, d [units/100m2]    : 12.09
+
+6. UNDERLAYER RESULTS - HEAD
+   Theoretical Target (W/10)           : 81.34 kN
+   Adopted rock grading                : EN 13383 HMA 6-10 ton
+   Grading Min (Lower Limit)           : 58.84 kN
+   Grading Max (Upper Limit)           : 98.07 kN
+   Mean Weight (Used for thickness)    : 78.45 kN
+   Nominal Diameter (Dn_rock)          : 1.436 m
+   Double Layer Thickness (r2)         : 2.87 m
+   Packing Density, f2 [rocks/100m2]   : 72.75
+================================================================================
+
+================================================================================
+    TECHNICAL REPORT: BREAKWATER ARMOR & UNDERLAYER DESIGN                         
+================================================================================
+Methodology: Chegini-Aghtouman (2006) - Antifer (Slope 1.5:1)
+--------------------------------------------------------------------------------
+1. INPUT PARAMETERS
+   Hs (Sigificant Wave Height)         : 10.00 m
+   Tm (Mean Wave Period)               : 13.00 s
+   Storm Duration (h)                  : 12.00 h
+   Nod (Damage)                        : 1.00
+   Wc Trunk (Concrete Spec. Weight)    : 24.00 kN/m3
+   Ww (Water Specific Weight)          : 10.05 kN/m3
+   Relative Density D=(Wc/Ww)-1        : 1.3881
+   Structure Slope (TRUNK & HEAD)      : 1.5:1
+   Porosity (Cubes)                    : 40%
+   Porosity (Rock Layer)               : 25%
+--------------------------------------------------------------------------------
+2. INTERMEDIATE PARAMETERS
+   Wave Length (L0)                    : 263.77 m
+   wave number (k0 = 2*pi/L0)          : 0.0238
+   wave steepness (s0m = Hs/L0)        : 0.0379
+   Number of waves (Nz)                : 3323
+   Stability Number TRUNK (Ns)         : 2.2737
+   Stability Number HEAD (Ns)          : 1.9863
+--------------------------------------------------------------------------------
+3. ARMOR LAYER RESULTS - TRUNK
+   BLOCK WEIGHT (W)                    : 763.47 kN
+   Mass (ton)                          : 77.85 t
+   Nominal Diameter (Dn)               : 3.169 m
+   Cube Height (H)                     : 3.143 m
+   Cube Top Width (B)                  : 3.159 m
+   Cube Base Width (A)                 : 3.413 m
+   KD_TRUNK (Equivalent)               : 7.84
+   Double Layer Thickness (r1)         : 6.34 m
+   Packing Density, d [units/100m2]    : 11.95
+
+4. UNDERLAYER RESULTS - TRUNK
+   Theoretical Target (W/10)           : 76.35 kN
+   Adopted rock grading                : EN 13383 HMA 6-10 ton
+   Grading Min (Lower Limit)           : 58.84 kN
+   Grading Max (Upper Limit)           : 98.07 kN
+   Mean Weight (Used for thickness)    : 78.45 kN
+   Nominal Diameter (Dn_rock)          : 1.436 m
+   Double Layer Thickness (r2)         : 2.87 m
+   Packing Density, f2 [rocks/100m2]   : 72.75
+--------------------------------------------------------------------------------
+5. ARMOR LAYER RESULTS - HEAD (High Density)
+   *Maintains same Dn and Slope as Trunk*
+   Stability Ratio (Kd_T/Kd_H)         : 1.50
+   Nominal Diameter (Dn)               : 3.169 m
+   Cube Height (H)                     : 3.143 m
+   Cube Top width (B)                  : 3.159 m
+   Cube Base Width (A)                 : 3.413 m
+   KD_HEAD (Equivalent)                : 5.22
+   Required Concrete Density (Wc)      : 26.02 kN/m3
+   BLOCK WEIGHT (W)                    : 827.69 kN
+   Mass (ton)                          : 84.40 t
+   Packing Density, d [units/100m2]    : 11.95
+
+6. UNDERLAYER RESULTS - HEAD
+   Theoretical Target (W/10)           : 82.77 kN
+   Adopted rock grading                : EN 13383 HMA 6-10 ton
+   Grading Min (Lower Limit)           : 58.84 kN
+   Grading Max (Upper Limit)           : 98.07 kN
+   Mean Weight (Used for thickness)    : 78.45 kN
+   Nominal Diameter (Dn_rock)          : 1.436 m
+   Double Layer Thickness (r2)         : 2.87 m
+   Packing Density, f2 [rocks/100m2]   : 72.75
+================================================================================
+
