@@ -3,19 +3,19 @@
 
 ## 1. Abstract
 
-This repository contains a comprehensive computational suite designed for the hydraulic design of coastal breakwater armor layers. The software implements advanced empirical formulae to dimension artificial concrete units, specifically **Simple Cubes** (Van der Meer) and **Antifer Blocks** (Chegini & Aghtouman).
+This repository contains computational tools designed for the hydraulic design of coastal breakwater armor layers. The software implements well known empirical formulae to dimension artificial concrete units, specifically **Simple Cubes** (Van der Meer) and **Antifer Blocks** (Chegini & Aghtouman).
 
-A distinguishing feature of this tool is its **Iso-Geometric Design Philosophy** for the breakwater head. Rather than increasing the nominal diameter ($D_n$) of armor units at the roundhead—which necessitates different casting moulds, storage logistics, and crane requirements—this calculator solves for the required **increase in concrete density** ($\rho_c$). This allows the Trunk and the Head to be constructed using geometrically identical units (same mould), optimizing construction efficiency while meeting strict safety factors via material density adjustments.
+A distinguishing feature of this tool is its **Iso-Geometric Design Philosophy** for the breakwater head. Rather than increasing the nominal diameter ($D_n$) of armor units at the roundhead—which necessitates different casting moulds, storage logistics, and crane requirements—this calculator solves for the required **increase in concrete density** ($\rho_c$). This allows the Trunk and the Head to be constructed using geometrically identical units (same moulds), optimizing construction efficiency while meeting equal safety factors via material density adjustments.
 
 ---
 
 ## 2. Theoretical Framework & Methodology
 
-The software calculates design parameters based on a synthesis of hydraulic model test data and established coastal engineering standards.
+The software calculates design parameters based on formulas that were calibrated as a result of hydraulic model test data and established coastal engineering standards.
 
 ### 2.1 Wave Mechanics & Geometric Parameters
 
-Before determining armor stability, the software computes the fundamental wave and structure properties:
+Before determining armor stability, the software computes wave and structure properties:
 
 **Deep Water Wavelength ($L_0$):**
 Calculated based on the mean wave period ($T_m$) using linear wave theory approximation for deep water:
@@ -57,17 +57,16 @@ The software utilizes the following database of coefficients:
 
 | Method | Block Type | Slope | $k_1$ | $k_2$ | $k_3$ | $k_4$ | $k_5$ |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Van der Meer (1988)** | Simple Cubes | 2.0:1 | 6.7 | 0.4 | 0.3 | 1.0 | 0.1 |
-| **Van der Meer (1988)** | Simple Cubes | 1.5:1 | 6.7 | 0.4 | 0.3 | 1.0 | 0.1 |
+| **Van der Meer (1988)** | Simple Cubes | 1.5 or 2.0:1 | 6.7 | 0.4 | 0.3 | 1.0 | 0.1 |
 | **Chegini (2006)** | Antifer | 2.0:1 | 6.138 | 0.443 | 0.276 | 1.164 | 0.07 |
 | **Chegini (2006)** | Antifer | 1.5:1 | 6.951 | 0.443 | 0.291 | 1.082 | 0.082 |
 
-*Note: For Van der Meer Cubes (Slope 2.0:1), the script applies a specific calibration factor adjustment to the result found in the source code:*
+For Van der Meer Cubes (Slope 2.0:1), the script applies a scale factor adjustment to the result based in Hudson's formula conclusion that breakwater stability varies linearly with slope (softer slopes lead to higher stability): 
 $$N_{s,adjusted} = N_s \times \left(\frac{2.0}{1.5}\right)^{1/3}$$
 
 ### 2.3 The Head Design Strategy: Van der Meer to Hudson Transfer
 
-The breakwater head is subjected to severe 3D turbulence and wave breaking, significantly higher than the trunk. Standard practice suggests increasing the block weight. However, this tool uses a "Transfer Function" approach to maintain constant geometry.
+The breakwater head is subjected to 3D turbulence and wave breaking significantly higher than the trunk. Standard practice suggests increasing the block weight. However, this tool uses a "Transfer Function" approach to maintain constant geometry.
 
 **The Logic:**
 1.  **Calculate Equivalent Hudson $K_D$:** We first determine what the Hudson Stability Coefficient ($K_D$) would be for the calculated Trunk armor.
@@ -84,7 +83,9 @@ The breakwater head is subjected to severe 3D turbulence and wave breaking, sign
 
 ### 2.4 Underlayer Geotechnical Design (EN 13383)
 
-The software automatically sizes the underlayer rock based on the **EN 13383** standard European rock gradings.
+The EN 13383 standard (specifically EN 13383-1: Specification and EN 13383-2: Test methods) provides a harmonized European system for specifying the properties and grading of armourstone used in civil engineering and hydraulic structures like breakwaters, seawalls, and riverbank protection. 
+
+The software automatically sizes the underlayer rock based on the [**EN 13383** standard European rock gradings] (https://en.wikipedia.org/wiki/Armourstone).
 
 1.  **Target Weight:** $W_{ul} \approx W_{armor} / 10$
 2.  **Selection Algorithm:** The code iterates through standard grading classes (e.g., LMA 60-300kg, HMA 1-3 ton) and selects the class where the mean weight ($W_{50}$) is closest to the target.
