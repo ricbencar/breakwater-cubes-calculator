@@ -63,7 +63,7 @@ The software utilizes the following database of coefficients:
 | **Chegini (2006)** | Antifer | 2.0:1 | 6.138 | 0.443 | 0.276 | 1.164 | 0.07 |
 | **Chegini (2006)** | Antifer | 1.5:1 | 6.951 | 0.443 | 0.291 | 1.082 | 0.082 |
 
-For Van der Meer Cubes (Slope 2.0:1), the script applies a scale factor adjustment to the result based in Hudson's formula conclusion that breakwater stability varies linearly with slope (softer slopes lead to higher stability): 
+For Van der Meer Cubes (Slope 2.0:1) the script applies a scale factor adjustment to the Stability Number based on Hudson's formula property that breakwater stability varies linearly with slope (softer slopes lead to higher stability): 
 $$N_{s,adjusted} = N_s \times \left(\frac{2.0}{1.5}\right)^{1/3}$$
 
 ### 2.3 The Head Design Strategy: Van der Meer to Hudson Transfer
@@ -181,3 +181,4 @@ The software generates a detailed technical text report (printed to stdout or `o
 
 
 **Disclaimer:** This software is an engineering aid and does not replace physical model testing. The authors assume no liability for the structural failure of breakwaters designed using these codes. Engineering judgment must be exercised, particularly regarding the specific hydraulic boundary conditions and material quality.
+
