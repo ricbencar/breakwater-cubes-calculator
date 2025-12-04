@@ -586,7 +586,7 @@ void CreateControls(HWND hwnd) {
     // --- COMBOBOX ORDER ---
     SendMessageW(hComboFormula, CB_ADDSTRING, 0, (LPARAM)L"1. Cubes (Slope 2.0:1) - Van der Meer");
     SendMessageW(hComboFormula, CB_ADDSTRING, 0, (LPARAM)L"2. Cubes (Slope 1.5:1) - Van der Meer");
-    SendMessageW(hComboFormula, CB_ADDSTRING, 0, (LPARAM)L"3. Antifer (Slope 2:1) - Chegini");
+    SendMessageW(hComboFormula, CB_ADDSTRING, 0, (LPARAM)L"3. Antifer (Slope 2.0:1) - Chegini");
     SendMessageW(hComboFormula, CB_ADDSTRING, 0, (LPARAM)L"4. Antifer (Slope 1.5:1) - Chegini");
     SendMessageW(hComboFormula, CB_SETCURSEL, 0, 0); 
 
