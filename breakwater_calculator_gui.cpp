@@ -305,7 +305,7 @@ public:
 
         double Dn = params.Hs / (delta_trunk * Ns_trunk);
         double W_trunk = params.Wc * std::pow(Dn, 3);
-        double packing_density_trunk = 100.0 * 2.0 * 1.0 * (1.0 - P_cubes) / std::pow(Dn, 2);
+        double packing_density_trunk = 100.0 * 2.0 * 1.1 * (1.0 - P_cubes) / std::pow(Dn, 2);
 
         double slope = coeffs.slope_ratio;
         double kd_trunk_equiv = (params.Wc * std::pow(params.Hs, 3)) / (W_trunk * std::pow(delta_trunk, 3) * slope);
@@ -319,11 +319,11 @@ public:
         double W_head = W_trunk * (Wc_head / params.Wc);
 
         double Ns_head = params.Hs / (delta_head * Dn);
-        double packing_density_head = 100.0 * 2.0 * 1.0 * (1.0 - P_cubes) / std::pow(Dn, 2);
+        double packing_density_head = 100.0 * 2.0 * 1.1 * (1.0 - P_cubes) / std::pow(Dn, 2);
 
         UnderlayerResult ul_head = calculate_underlayer_params(W_head);
 
-        double r1 = 2.0 * Dn;
+        double r1 = 2.0 * 1.1 * Dn;
         double vol_trunk = W_trunk / params.Wc;
         double h_trunk = std::pow(vol_trunk / 1.0247, 1.0/3.0);
         double a_trunk = 1.086 * h_trunk;

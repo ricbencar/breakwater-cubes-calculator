@@ -31,8 +31,8 @@ Methodology: Van Der Meer (1988a) - Cubes (Slope 2.0:1)
    Cube Top Width (B)                  : 2.962 m
    Cube Base Width (A)                 : 3.200 m
    KD_TRUNK (Equivalent)               : 7.13
-   Double Layer Thickness (r1)         : 5.94 m
-   Packing Density, d [units/100m2]    : 13.60
+   Double Layer Thickness (r1)         : 6.54 m
+   Packing Density, d [units/100m2]    : 14.96
 
 4. UNDERLAYER RESULTS - TRUNK
    Theoretical Target (W/10)           : 62.93 kN
@@ -55,7 +55,7 @@ Methodology: Van Der Meer (1988a) - Cubes (Slope 2.0:1)
    Required Concrete Density (Wc)      : 26.02 kN/m3
    BLOCK WEIGHT (W)                    : 682.25 kN
    Mass (ton)                          : 69.57 t
-   Packing Density, d [units/100m2]    : 13.60
+   Packing Density, d [units/100m2]    : 14.96
 
 6. UNDERLAYER RESULTS - HEAD
    Theoretical Target (W/10)           : 68.22 kN
@@ -101,8 +101,8 @@ Methodology: Van Der Meer (1988a) - Cubes (Slope 1.5:1)
    Cube Top Width (B)                  : 3.260 m
    Cube Base Width (A)                 : 3.522 m
    KD_TRUNK (Equivalent)               : 7.13
-   Double Layer Thickness (r1)         : 6.54 m
-   Packing Density, d [units/100m2]    : 11.22
+   Double Layer Thickness (r1)         : 7.19 m
+   Packing Density, d [units/100m2]    : 12.35
 
 4. UNDERLAYER RESULTS - TRUNK
    Theoretical Target (W/10)           : 83.91 kN
@@ -125,7 +125,7 @@ Methodology: Van Der Meer (1988a) - Cubes (Slope 1.5:1)
    Required Concrete Density (Wc)      : 26.02 kN/m3
    BLOCK WEIGHT (W)                    : 909.66 kN
    Mass (ton)                          : 92.76 t
-   Packing Density, d [units/100m2]    : 11.22
+   Packing Density, d [units/100m2]    : 12.35
 
 6. UNDERLAYER RESULTS - HEAD
    Theoretical Target (W/10)           : 90.97 kN
@@ -171,8 +171,8 @@ Methodology: Chegini-Aghtouman (2006) - Antifer (Slope 2:1)
    Cube Top Width (B)                  : 3.140 m
    Cube Base Width (A)                 : 3.393 m
    KD_TRUNK (Equivalent)               : 5.98
-   Double Layer Thickness (r1)         : 6.30 m
-   Packing Density, d [units/100m2]    : 12.09
+   Double Layer Thickness (r1)         : 6.93 m
+   Packing Density, d [units/100m2]    : 13.30
 
 4. UNDERLAYER RESULTS - TRUNK
    Theoretical Target (W/10)           : 75.02 kN
@@ -195,7 +195,7 @@ Methodology: Chegini-Aghtouman (2006) - Antifer (Slope 2:1)
    Required Concrete Density (Wc)      : 26.02 kN/m3
    BLOCK WEIGHT (W)                    : 813.35 kN
    Mass (ton)                          : 82.94 t
-   Packing Density, d [units/100m2]    : 12.09
+   Packing Density, d [units/100m2]    : 13.30
 
 6. UNDERLAYER RESULTS - HEAD
    Theoretical Target (W/10)           : 81.34 kN
@@ -241,8 +241,8 @@ Methodology: Chegini-Aghtouman (2006) - Antifer (Slope 1.5:1)
    Cube Top Width (B)                  : 3.159 m
    Cube Base Width (A)                 : 3.413 m
    KD_TRUNK (Equivalent)               : 7.84
-   Double Layer Thickness (r1)         : 6.34 m
-   Packing Density, d [units/100m2]    : 11.95
+   Double Layer Thickness (r1)         : 6.97 m
+   Packing Density, d [units/100m2]    : 13.15
 
 4. UNDERLAYER RESULTS - TRUNK
    Theoretical Target (W/10)           : 76.35 kN
@@ -265,7 +265,7 @@ Methodology: Chegini-Aghtouman (2006) - Antifer (Slope 1.5:1)
    Required Concrete Density (Wc)      : 26.02 kN/m3
    BLOCK WEIGHT (W)                    : 827.69 kN
    Mass (ton)                          : 84.40 t
-   Packing Density, d [units/100m2]    : 11.95
+   Packing Density, d [units/100m2]    : 13.15
 
 6. UNDERLAYER RESULTS - HEAD
    Theoretical Target (W/10)           : 82.77 kN

@@ -356,7 +356,7 @@ public:
         // 5. Block Sizing (Armor) - TRUNK
         double Dn = params.Hs / (delta_trunk * Ns_trunk);
         double W_trunk = params.Wc * std::pow(Dn, 3);
-        double packing_density_trunk = 100.0 * 2.0 * 1.0 * (1.0 - P_cubes) / std::pow(Dn, 2);
+        double packing_density_trunk = 100.0 * 2.0 * 1.1 * (1.0 - P_cubes) / std::pow(Dn, 2);
 
         // 6. Hudson Comparative Calculation
         double slope = coeffs.slope_ratio;
@@ -374,13 +374,13 @@ public:
 
         // Calculate Stability Number for Head
         double Ns_head = params.Hs / (delta_head * Dn);
-        double packing_density_head = 100.0 * 2.0 * 1.0 * (1.0 - P_cubes) / std::pow(Dn, 2);
+        double packing_density_head = 100.0 * 2.0 * 1.1 * (1.0 - P_cubes) / std::pow(Dn, 2);
 
         // 9. UNDERLAYER - HEAD
         UnderlayerResult ul_head = calculate_underlayer_params(W_head);
 
         // 10. Armor Layer Details (Common)
-        double r1 = 2.0 * Dn;
+        double r1 = 2.0 * 1.1 * Dn;
 
         // Dimensions
         double vol_trunk = W_trunk / params.Wc;

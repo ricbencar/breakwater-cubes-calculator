@@ -273,7 +273,7 @@ class BreakwaterCalculator:
         
         # --- PACKING DENSITY CALCULATION (TRUNK) ---
         # Formula: 100 * Layers(2) * Coeff(1) * (1 - Porosity) / Dn^2
-        packing_density_trunk = 100.0 * 2.0 * 1.0 * (1.0 - self.P_cubes) / (Dn**2)
+        packing_density_trunk = 100.0 * 2.0 * 1.1 * (1.0 - self.P_cubes) / (Dn**2)
 
         # 6. Hudson Comparative Calculation (Kd Trunk)
         # Calculates the equivalent Hudson Stability Coefficient (Kd) for reference.
@@ -314,7 +314,7 @@ class BreakwaterCalculator:
         # Since Dn is maintained constant between Head and Trunk, 
         # the packing density (units/100m2) will actually be identical.
         # We perform the calculation again for verification.
-        packing_density_head = 100.0 * 2.0 * 1.0 * (1.0 - self.P_cubes) / (Dn**2)
+        packing_density_head = 100.0 * 2.0 * 1.1 * (1.0 - self.P_cubes) / (Dn**2)
 
         # 9. UNDERLAYER - HEAD
         # Independently calculated based on Head Armor Weight (W_head)
@@ -323,7 +323,7 @@ class BreakwaterCalculator:
 
         # 10. Armor Layer Details (Common)
         # r1 is the theoretical thickness of the double armor layer
-        r1 = 2.0 * Dn
+        r1 = 2.0 * 1.1 * Dn
 
         # --- CALCULATE CUBE DIMENSIONS (H, A, B) ---
         # These shape factors are specific to the unit type (Cubes vs Antifer).
