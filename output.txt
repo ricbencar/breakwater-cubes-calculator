@@ -36,9 +36,9 @@ Methodology: Van Der Meer (1988a) - Cubes (Slope 2.0:1)
 
 4. UNDERLAYER RESULTS - TRUNK
    Theoretical Target (W/10)           : 62.93 kN
-   Adopted rock grading                : EN 13383 HMA 6-10 ton
-   Grading Min (Lower Limit)           : 58.84 kN
-   Grading Max (Upper Limit)           : 98.07 kN
+   Adopted rock grading                : HRA6000-10000
+   Grading Min (Lower Limit)           : 73.55 kN
+   Grading Max (Upper Limit)           : 83.36 kN
    Mean Weight (Used for thickness)    : 78.45 kN
    Nominal Diameter (Dn_rock)          : 1.436 m
    Double Layer Thickness (r2)         : 2.87 m
@@ -59,9 +59,9 @@ Methodology: Van Der Meer (1988a) - Cubes (Slope 2.0:1)
 
 6. UNDERLAYER RESULTS - HEAD
    Theoretical Target (W/10)           : 68.22 kN
-   Adopted rock grading                : EN 13383 HMA 6-10 ton
-   Grading Min (Lower Limit)           : 58.84 kN
-   Grading Max (Upper Limit)           : 98.07 kN
+   Adopted rock grading                : HRA6000-10000
+   Grading Min (Lower Limit)           : 73.55 kN
+   Grading Max (Upper Limit)           : 83.36 kN
    Mean Weight (Used for thickness)    : 78.45 kN
    Nominal Diameter (Dn_rock)          : 1.436 m
    Double Layer Thickness (r2)         : 2.87 m
@@ -106,9 +106,9 @@ Methodology: Van Der Meer (1988a) - Cubes (Slope 1.5:1)
 
 4. UNDERLAYER RESULTS - TRUNK
    Theoretical Target (W/10)           : 83.91 kN
-   Adopted rock grading                : EN 13383 HMA 6-10 ton
-   Grading Min (Lower Limit)           : 58.84 kN
-   Grading Max (Upper Limit)           : 98.07 kN
+   Adopted rock grading                : HRA6000-10000
+   Grading Min (Lower Limit)           : 73.55 kN
+   Grading Max (Upper Limit)           : 83.36 kN
    Mean Weight (Used for thickness)    : 78.45 kN
    Nominal Diameter (Dn_rock)          : 1.436 m
    Double Layer Thickness (r2)         : 2.87 m
@@ -129,9 +129,9 @@ Methodology: Van Der Meer (1988a) - Cubes (Slope 1.5:1)
 
 6. UNDERLAYER RESULTS - HEAD
    Theoretical Target (W/10)           : 90.97 kN
-   Adopted rock grading                : EN 13383 HMA 6-10 ton
-   Grading Min (Lower Limit)           : 58.84 kN
-   Grading Max (Upper Limit)           : 98.07 kN
+   Adopted rock grading                : HRA6000-10000
+   Grading Min (Lower Limit)           : 73.55 kN
+   Grading Max (Upper Limit)           : 83.36 kN
    Mean Weight (Used for thickness)    : 78.45 kN
    Nominal Diameter (Dn_rock)          : 1.436 m
    Double Layer Thickness (r2)         : 2.87 m
@@ -176,9 +176,9 @@ Methodology: Chegini-Aghtouman (2006) - Antifer (Slope 2:1)
 
 4. UNDERLAYER RESULTS - TRUNK
    Theoretical Target (W/10)           : 75.02 kN
-   Adopted rock grading                : EN 13383 HMA 6-10 ton
-   Grading Min (Lower Limit)           : 58.84 kN
-   Grading Max (Upper Limit)           : 98.07 kN
+   Adopted rock grading                : HRA6000-10000
+   Grading Min (Lower Limit)           : 73.55 kN
+   Grading Max (Upper Limit)           : 83.36 kN
    Mean Weight (Used for thickness)    : 78.45 kN
    Nominal Diameter (Dn_rock)          : 1.436 m
    Double Layer Thickness (r2)         : 2.87 m
@@ -199,9 +199,9 @@ Methodology: Chegini-Aghtouman (2006) - Antifer (Slope 2:1)
 
 6. UNDERLAYER RESULTS - HEAD
    Theoretical Target (W/10)           : 81.34 kN
-   Adopted rock grading                : EN 13383 HMA 6-10 ton
-   Grading Min (Lower Limit)           : 58.84 kN
-   Grading Max (Upper Limit)           : 98.07 kN
+   Adopted rock grading                : HRA6000-10000
+   Grading Min (Lower Limit)           : 73.55 kN
+   Grading Max (Upper Limit)           : 83.36 kN
    Mean Weight (Used for thickness)    : 78.45 kN
    Nominal Diameter (Dn_rock)          : 1.436 m
    Double Layer Thickness (r2)         : 2.87 m
@@ -246,9 +246,9 @@ Methodology: Chegini-Aghtouman (2006) - Antifer (Slope 1.5:1)
 
 4. UNDERLAYER RESULTS - TRUNK
    Theoretical Target (W/10)           : 76.35 kN
-   Adopted rock grading                : EN 13383 HMA 6-10 ton
-   Grading Min (Lower Limit)           : 58.84 kN
-   Grading Max (Upper Limit)           : 98.07 kN
+   Adopted rock grading                : HRA6000-10000
+   Grading Min (Lower Limit)           : 73.55 kN
+   Grading Max (Upper Limit)           : 83.36 kN
    Mean Weight (Used for thickness)    : 78.45 kN
    Nominal Diameter (Dn_rock)          : 1.436 m
    Double Layer Thickness (r2)         : 2.87 m
@@ -269,9 +269,9 @@ Methodology: Chegini-Aghtouman (2006) - Antifer (Slope 1.5:1)
 
 6. UNDERLAYER RESULTS - HEAD
    Theoretical Target (W/10)           : 82.77 kN
-   Adopted rock grading                : EN 13383 HMA 6-10 ton
-   Grading Min (Lower Limit)           : 58.84 kN
-   Grading Max (Upper Limit)           : 98.07 kN
+   Adopted rock grading                : HRA6000-10000
+   Grading Min (Lower Limit)           : 73.55 kN
+   Grading Max (Upper Limit)           : 83.36 kN
    Mean Weight (Used for thickness)    : 78.45 kN
    Nominal Diameter (Dn_rock)          : 1.436 m
    Double Layer Thickness (r2)         : 2.87 m

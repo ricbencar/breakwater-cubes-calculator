@@ -121,18 +121,26 @@ class BreakwaterCalculator:
         # Mass ranges converted to weight (kN) dynamically during calculation.
         # These represent standard commercial availability of rock.
         self.standard_gradings = [
-            # Light Mass (LMA)
-            {"name": "EN 13383 LMA 5-40 kg",     "min_kg": 5,    "max_kg": 40},
-            {"name": "EN 13383 LMA 10-60 kg",    "min_kg": 10,   "max_kg": 60},
-            {"name": "EN 13383 LMA 40-200 kg",   "min_kg": 40,   "max_kg": 200},
-            {"name": "EN 13383 LMA 60-300 kg",   "min_kg": 60,   "max_kg": 300},
-            # Heavy Mass (HMA)
-            {"name": "EN 13383 HMA 300-1000 kg", "min_kg": 300,  "max_kg": 1000},
-            {"name": "EN 13383 HMA 1-3 ton",     "min_kg": 1000, "max_kg": 3000},
-            {"name": "EN 13383 HMA 3-6 ton",     "min_kg": 3000, "max_kg": 6000},
-            {"name": "EN 13383 HMA 6-10 ton",    "min_kg": 6000, "max_kg": 10000},
+            # Coarse / Light Gradings
+            {"name": "CP45/125",       "min_kg": 0.4,    "max_kg": 1.2},
+            {"name": "CP63/180",       "min_kg": 1.2,    "max_kg": 3.8},
+            {"name": "CP90/250",       "min_kg": 3.1,    "max_kg": 9.3},
+            {"name": "CP45/180",       "min_kg": 0.4,    "max_kg": 1.2},
+            {"name": "CP90/180",       "min_kg": 2.1,    "max_kg": 2.8},
+            # Light Rock Armour (LRA)
+            {"name": "LRA5-40",        "min_kg": 10,     "max_kg": 20},
+            {"name": "LRA10-60",       "min_kg": 20,     "max_kg": 35},
+            {"name": "LRA40-200",      "min_kg": 80,     "max_kg": 120},
+            {"name": "LRA60-300",      "min_kg": 120,    "max_kg": 190},
+            {"name": "LRA15-300",      "min_kg": 45,     "max_kg": 135},
+            # Heavy Rock Armour (HRA)
+            {"name": "HRA300-1000",    "min_kg": 540,    "max_kg": 690},
+            {"name": "HRA1000-3000",   "min_kg": 1700,   "max_kg": 2100},
+            {"name": "HRA3000-6000",   "min_kg": 4200,   "max_kg": 4800},
+            {"name": "HRA6000-10000",  "min_kg": 7500,   "max_kg": 8500},
+            {"name": "HRA10000-15000", "min_kg": 12000,  "max_kg": 13000},
         ]
-
+		
         # ----------------------------------------------------------------------
         # DEFAULT INPUTS
         # ----------------------------------------------------------------------
