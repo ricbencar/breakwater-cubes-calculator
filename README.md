@@ -87,7 +87,7 @@ The breakwater head is subjected to 3D turbulence and wave breaking significantl
 
 The EN 13383 standard (specifically EN 13383-1: Specification and EN 13383-2: Test methods) provides a harmonized European system for specifying the properties and grading of armourstone used in civil engineering and hydraulic structures like breakwaters, seawalls, and riverbank protection. 
 
-The software automatically sizes the underlayer rock based on the [**EN 13383** standard European rock gradings] (https://en.wikipedia.org/wiki/Armourstone).
+The software automatically sizes the underlayer rock based on the [EN 13383 standard European rock gradings](https://en.wikipedia.org/wiki/Armourstone).
 
 1.  **Target Weight:** $W_{ul} \approx W_{armor} / 10$
 2.  **Selection Algorithm:** The code iterates through standard grading classes (e.g., LMA 60-300kg, HMA 1-3 ton) and selects the class where the mean weight ($W_{50}$) is closest to the target.
@@ -181,4 +181,5 @@ The software generates a detailed technical text report (printed to stdout or `o
 
 
 **Disclaimer:** This software is an engineering aid and does not replace physical model testing. The authors assume no liability for the structural failure of breakwaters designed using these codes. Engineering judgment must be exercised, particularly regarding the specific hydraulic boundary conditions and material quality.
+
 
