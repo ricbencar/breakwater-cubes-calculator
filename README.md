@@ -3,7 +3,7 @@
 
 ## 1. Abstract
 
-This repository contains computational tools designed for the hydraulic design of coastal breakwater armor layers. The software implements well known empirical formulae to dimension artificial concrete units, specifically **Simple Cubes** (Van der Meer) and **Antifer Blocks** (Chegini & Aghtouman).
+This repository contains computational tools designed for the hydraulic design of coastal breakwater armor layers. The software implements well-known empirical formulae to dimension artificial concrete units, specifically **Simple Cubes** (Van der Meer) and **Antifer Blocks** (Chegini & Aghtouman).
 
 A distinguishing feature of this tool is its **Iso-Geometric Design Philosophy** for the breakwater head. Rather than increasing the nominal diameter ($D_n$) of armor units at the roundhead—which necessitates different casting moulds, storage logistics, and crane requirements—this calculator solves for the required **increase in concrete density** ($\rho_c$).
 
@@ -95,19 +95,28 @@ The software automatically sizes the underlayer rock based on the [EN 13383 stan
 
 ---
 
-## 3. Repository Contents & Compilation
+## 3. Repository Contents & Implementation Variations
 
-This repository includes three implementation variations of the calculator to suit different engineering workflows.
+This repository includes several implementation variations of the calculator to suit different engineering workflows, ranging from quick spreadsheet checks to compiled software.
 
-### 3.1 Python Script (`breakwater-cubes-calculator.py`)
-A rapid prototyping script ideal for quick checks and education.
+### 3.1 Python Script (`breakwater_calculator.py`)
+A rapid prototyping script ideal for quick checks and automation.
 * **Dependencies:** Python 3.x (Standard libraries: `math`, `sys`, `os`).
 * **Execution:**
     ```bash
-    python3 breakwater-cubes-calculator.py
+    python3 breakwater_calculator.py
     ```
 
-### 3.2 C++ CLI (`breakwater_calculator_cli.cpp`)
+### 3.2 Jupyter Notebook (`breakwater_calculator.ipynb`)
+An interactive notebook that combines the calculation logic with documentation and visualization. Ideal for educational purposes or detailed design reports where step-by-step verification is required.
+* **Dependencies:** Jupyter Lab / Notebook, Python 3.x, `pandas`.
+* **Features:** Inline markdown explanations, cell-by-cell execution, and transparent variable tracking.
+
+### 3.3 Excel Spreadsheet (`breakwater_calculator.xlsx`)
+A standard engineering spreadsheet implementation for users who prefer a non-coding environment.
+* **Features:** Pre-programmed formulas, dropdown menus for block selection, and conditional formatting for results.
+
+### 3.4 C++ CLI (`breakwater_calculator_cli.cpp`)
 A high-performance command-line tool designed for batch processing or integration into pipelines. It utilizes static linking for portability.
 
 * **Compilation (GCC/MinGW):**
@@ -121,10 +130,10 @@ A high-performance command-line tool designed for batch processing or integratio
     ```bash
     ./breakwater_calculator_cli [Hs] [Tm] [Duration] [Nod] [Wc] [FormulaID]
     # Example:
-    ./breakwater_calculator_cli 10.5 13.0 12.0 1.0 24.0 1
+    ./breakwater_calculator_cli 10.0 13.0 12.0 1.0 24.0 1
     ```
 
-### 3.3 C++ GUI (`breakwater_calculator_gui.cpp`)
+### 3.5 C++ GUI (`breakwater_calculator_gui.cpp`)
 A standalone native Windows application using the Win32 API. It provides a visual interface for inputting parameters and viewing generated reports.
 
 * **Compilation (MinGW on Windows):**
@@ -179,8 +188,4 @@ The software generates a detailed technical text report (printed to stdout or `o
 
 **License:** Open Source (MIT or equivalent).
 
-
 **Disclaimer:** This software is an engineering aid and does not replace physical model testing. The authors assume no liability for the structural failure of breakwaters designed using these codes. Engineering judgment must be exercised, particularly regarding the specific hydraulic boundary conditions and material quality.
-
-
-

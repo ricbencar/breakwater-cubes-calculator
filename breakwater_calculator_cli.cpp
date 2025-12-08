@@ -62,8 +62,8 @@
 // 2. Command Line Arguments Mode:
 // Format: breakwater_calculator.exe [Hs] [Tm] [Duration] [Nod] [Wc] [FormulaID]
 //
-// Example (Hs=11.5, Tm=13.0, Duration=8.5, Nod=1.0, Wc=26.6, FormulaID=1):
-// breakwater_calculator.exe 11.5 13.0 8.5 1.0 26.6 1
+// Example (Hs=10.0, Tm=13.0, Duration=12.0, Nod=1.0, Wc=24.0, FormulaID=1):
+// breakwater_calculator.exe 10.0 13.0 12.0 1.0 24.0 1
 //
 // ======================================================================================
 
