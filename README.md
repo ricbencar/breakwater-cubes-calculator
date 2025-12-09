@@ -7,7 +7,7 @@ This repository contains computational tools designed for the hydraulic design o
 
 A distinguishing feature of this tool is its **Iso-Geometric Design Philosophy** for the breakwater head. Rather than increasing the nominal diameter ($D_n$) of armor units at the roundhead—which necessitates different casting moulds, storage logistics, and crane requirements—this calculator solves for the required **increase in concrete density** ($\rho_c$).
 
-This allows the Trunk and the Head to be constructed using geometrically identical units (same moulds), optimizing construction efficiency while meeting equal safety factors via material density adjustments.
+This allows the Trunk and the Head to be constructed using geometrically identical units (same moulds) and identical slope angles, optimizing construction efficiency while meeting equal safety factors via material density adjustments.
 
 ---
 
@@ -66,22 +66,57 @@ The software utilizes the following database of coefficients:
 For Van der Meer Cubes (Slope 2.0:1) the script applies a scale factor adjustment to the Stability Number based on Hudson's formula property that breakwater stability varies linearly with slope (softer slopes lead to higher stability): 
 $$N_{s,adjusted} = N_s \times \left(\frac{2.0}{1.5}\right)^{1/3}$$
 
-### 2.3 The Head Design Strategy: Van der Meer to Hudson Transfer
+### 2.3 The Head Design Strategy: Iso-Geometric Transfer
 
-The breakwater head is subjected to 3D turbulence and wave breaking significantly higher than the trunk. Standard practice suggests increasing the block weight. However, this tool uses a "Transfer Function" approach to maintain constant geometry.
+The breakwater head is subjected to 3D turbulence and wave breaking significantly higher than the trunk. Standard practice suggests increasing the block size. However, this tool uses a "Transfer Function" approach to maintain constant geometry ($D_n$ and Slope).
 
-**The Logic:**
-1.  **Calculate Equivalent Hudson $K_D$:** We first determine what the Hudson Stability Coefficient ($K_D$) would be for the calculated Trunk armor.
-    $$K_{D,trunk} = \frac{\rho_c H_s^3}{W \Delta^3 \cot\alpha}$$
+**Important Note on Weight:**
+While the Nominal Diameter ($D_n$) and Slope ($\cot\alpha$) are kept identical between Trunk and Head to utilize the same casting molds, the **Weight ($W$) is different**. Since the Head requires higher density concrete to maintain stability, the individual blocks at the head will be heavier than those at the trunk ($W_{head} > W_{trunk}$).
 
-2.  **Apply Safety Ratio ($R$):** We enforce that the Head must be 1.5 times more stable than the Trunk (standard engineering judgment).
-    $$K_{D,head} = \frac{K_{D,trunk}}{1.5}$$
+#### Mathematical Demonstration of the Density Transfer
 
-3.  **Solve for Density Increase:** In the Hudson formula, stability is proportional to $\Delta^3$. To maintain the same weight $W$ and size $D_n$ while increasing stability, we must increase $\Delta$.
-    $$\Delta_{head} = \Delta_{trunk} \cdot (1.5)^{1/3}$$
+The following derivation proves how we solve for the required Head Density ($\Delta_{head}$) while keeping the mold size constant.
 
-4.  **Result:** The software outputs a required **High Density Concrete** ($\rho_{c,head}$) for the head units.
-    $$\rho_{c,head} = \rho_w (\Delta_{head} + 1)$$
+**1. The Principle: Hudson Formula in terms of Diameter ($D_n$)**
+The standard Hudson formula describes the stability of armor units:
+$$W = \frac{\gamma_r H^3}{K_D \Delta^3 \cot\alpha}$$
+
+Since we are designing for a fixed mold size, we must express this in terms of the Nominal Diameter ($D_n$). We know that weight is Volume $\times$ Unit Weight ($W = \gamma_r D_n^3$). Substituting $W$ in the Hudson formula:
+$$\gamma_r D_n^3 = \frac{\gamma_r H^3}{K_D \Delta^3 \cot\alpha}$$
+
+Canceling $\gamma_r$ on both sides and solving for $D_n$:
+$$D_n = \left( \frac{H^3}{K_D \Delta^3 \cot\alpha} \right)^{1/3} = \frac{H}{\Delta (K_D \cot\alpha)^{1/3}}$$
+
+**2. Apply to Trunk and Head**
+We write this derived formula for both sections of the breakwater.
+
+For the Trunk:
+$$D_{n,trunk} = \frac{H}{\Delta_{trunk} (K_{D,trunk} \cot\alpha)^{1/3}}$$
+
+For the Head:
+$$D_{n,head} = \frac{H}{\Delta_{head} (K_{D,head} \cot\alpha)^{1/3}}$$
+
+**3. Equate the Sizes (Iso-Geometric Design)**
+The core requirement is that the size of the blocks is identical ($D_{n,trunk} = D_{n,head}$) so the same molds can be used.
+$$\frac{H}{\Delta_{trunk} (K_{D,trunk} \cot\alpha)^{1/3}} = \frac{H}{\Delta_{head} (K_{D,head} \cot\alpha)^{1/3}}$$
+
+**4. Cancel Common Terms**
+We assume the design wave height ($H$) and the structure slope ($\cot\alpha$) are the same for this comparison. We cancel them from the equation:
+$$\frac{1}{\Delta_{trunk} (K_{D,trunk})^{1/3}} = \frac{1}{\Delta_{head} (K_{D,head})^{1/3}}$$
+
+**5. Rearrange to Solve for Head Density**
+We move $\Delta_{head}$ to the left side and everything else to the right:
+$$\Delta_{head} = \Delta_{trunk} \frac{(K_{D,trunk})^{1/3}}{(K_{D,head})^{1/3}}$$
+
+Grouping the stability coefficients:
+$$\Delta_{head} = \Delta_{trunk} \left( \frac{K_{D,trunk}}{K_{D,head}} \right)^{1/3}$$
+
+**6. Substitute the Stability Ratio**
+The "1.5" in the formula represents the ratio of the stability coefficients. The trunk is generally much more stable than the head for the same unit.
+$$Ratio = \frac{K_{D,trunk}}{K_{D,head}} = 1.5$$
+
+Substituting this into the equation gives the final result used by the calculator:
+$$\Delta_{head} = \Delta_{trunk} \cdot (1.5)^{1/3}$$
 
 ### 2.4 Underlayer Geotechnical Design (EN 13383)
 
@@ -147,6 +182,16 @@ A standalone native Windows application using the Win32 API. It provides a visua
     * Dropdown selection for Formula/Block type.
     * Scrollable report output window.
     * Automatic logging to `output.txt`.
+
+### 3.6 Fortran CLI (`breakwater_calculator_cli.f90`)
+[cite_start]A modern Fortran implementation (Fortran 2008 standard) [cite: 1, 23] tailored for high-performance numerical environments.
+
+* **Compilation (gfortran):**
+    ```bash
+    gfortran -O3 -march=native -std=f2008 -Wall -Wextra -pedantic -Wconversion -static \
+    -static-libgfortran -static-libgcc -o breakwater_calculator_cli breakwater_calculator_cli.f90
+    ```
+* [cite_start]**Usage:** Same as the C++ CLI (Supports both Interactive and Argument modes)[cite: 25].
 
 ---
 
