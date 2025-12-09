@@ -5,65 +5,67 @@
 // 1. PURPOSE:
 //    This software calculates the required size and weight of artificial concrete 
 //    armor units (specifically Cubes and Antifer blocks) for rubble mound breakwaters.
-//    It determines requirements for two distinct sections of the structure:
+//    It implements an "Iso-Geometric Design Philosophy" to dimension two sections:
 //    - The Trunk (the main longitudinal section).
 //    - The Head (the exposed tip/end of the breakwater).
 //
 // 2. METHODOLOGY:
-//    The calculator utilizes empirical stability formulas derived from hydraulic 
-//    model testing:
+//    The calculator utilizes empirical power-law formulas derived from hydraulic 
+//    model testing and European standards:
 //    - For Simple Cubes: Uses Van der Meer (1988) stability formulas.
-//    - For Antifer Cubes: Uses Chegini & Aghtouman (2006) power-law formulas.
-//    - For Underlayers: maps calculated requirements to EN 13383 Standard Rock Grades.
+//    - For Antifer Blocks: Uses Chegini & Aghtouman (2006) power-law formulas.
+//    - For Underlayers: Automatic sizing based on EN 13383 Standard Rock Gradings.
 //
 // 3. DESIGN LOGIC & STRATEGY:
-//    a. Trunk Design: 
-//       Calculates the Stability Number (Ns) based on wave height, duration, and damage 
-//       allowance. This determines the nominal diameter (Dn) and Weight (W).
+//    a. Trunk Stability: 
+//       Calculates the Stability Number (Ns) based on wave steepness (s0m), storm 
+//       duration (Nz), and damage level (Nod). This determines the nominal 
+//       diameter (Dn) and Weight (W).
 //
-//    b. Head Design (High-Density Strategy): 
-//       The breakwater head is subjected to more severe turbulence than the trunk. 
-//       Standard practice usually requires larger blocks. 
-//       However, this specific script uses a "Constant Geometry, Variable Density" logic:
-//       - It enforces a Safety Factor (Kd Ratio = 1.5).
-//       - It keeps the Block Size (Dn) identical to the Trunk (simplifying construction).
-//       - It increases the Concrete Density (Wc) to achieve the required stability 
-//         against the higher forces at the head.
+//    b. Head Design (Iso-Geometric Transfer Strategy): 
+//       The breakwater head endures higher turbulence (3D effects) than the trunk.
+//       Rather than increasing block size or softening the slope—which requires 
+//       different molds or crane logistics—this tool solves for the required 
+//       increase in Concrete Density (rho_c).
+//       
+//       - Principle: Maintain constant Geometry (Dn) and Slope (alpha).
+//       - Transfer Function: Delta_head = Delta_trunk * (1.5)^(1/3)
+//       - Result: Head blocks use the same molds but are heavier due to higher density.
 //
 // 4. TECHNICAL BIBLIOGRAPHY & REFERENCES:
 //
-// 1. Van der Meer, J.W. (1988). "Stability of Cubes, Tetrapods and Accropode."
+// 1. Van der Meer, J.W. (1988). "Rock Slopes and Gravel Beaches Under Wave Attack."
+//    Doctoral Thesis, Delft University of Technology.
+//
+// 2. Van der Meer, J.W. (1988). "Stability of Cubes, Tetrapods and Accropode."
 //    Proceedings of the Conference Breakwaters '88, Eastbourne, Thomas Telford.
 //
-// 2. Van der Meer, J.W. (1998). "Application and stability criteria for rock and 
-//    artificial units." Chapter 11 in: Dikes and Revetments. Balkema.
-//
-// 3. Chegini, V. & Aghtouman, P. (2006). "An Investigation on the Stability of Rubble 
-//    Mound Breakwaters with Armour Layers of Antifer Cubes." 
+// 3. Chegini, V., & Aghtouman, P. (2006). "An Investigation on the Stability of 
+//    Rubble Mound Breakwaters with Armour Layers of Antifer Cubes." 
 //    Journal of Marine Engineering.
 //
-// 4. USACE (2006). "Coastal Engineering Manual" (CEM), Chapter VI-5.
+// 4. USACE (2006). "Coastal Engineering Manual (CEM)", Chapter VI-5.
 //
-// 5. EN 13383-1. "Armourstone - Part 1: Specification." (Standard Rock Grades).
+// 5. CEN (2002). "EN 13383-1: Armourstone - Part 1: Specification.".
 //
 // 5. COMPILATION INSTRUCTIONS:
 //
-// Compilation (example using g++ on Windows/Linux):
+// Compilation (GCC/MinGW static linking):
 //
-// g++ -O3 -march=native -std=c++17 -Wall -Wextra -pedantic -Wconversion 
-// -Wsign-conversion -static -static-libgcc -static-libstdc++ 
+// g++ -O3 -march=native -std=c++17 -Wall -Wextra
+// -static -static-libgcc -static-libstdc++
 // -o breakwater_calculator_cli breakwater_calculator_cli.cpp
 //
 // 6. EXECUTION EXAMPLES:
 //
 // 1. Interactive Mode (No arguments):
-// breakwater_calculator.exe
+// ./breakwater_calculator_cli
 //
 // 2. Command Line Arguments Mode:
-// Format: breakwater_calculator.exe [Hs] [Tm] [Duration] [Nod] [Wc] [FormulaID]
+// Format: ./breakwater_calculator_cli [Hs] [Tm] [Duration] [Nod] [Wc] [FormulaID]
 //
 // Example (Hs=10.0, Tm=13.0, Duration=12.0, Nod=1.0, Wc=24.0, FormulaID=1):
-// breakwater_calculator.exe 10.0 13.0 12.0 1.0 24.0 1
+// ./breakwater_calculator_cli 10.0 13.0 12.0 1.0 24.0 1
 //
 // ======================================================================================
 
