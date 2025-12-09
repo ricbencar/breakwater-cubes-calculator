@@ -59,12 +59,15 @@ The software utilizes the following database of coefficients:
 
 | Method | Block Type | Slope | $k_1$ | $k_2$ | $k_3$ | $k_4$ | $k_5$ |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Van der Meer (1988)** | Simple Cubes | 1.5 or 2.0:1 | 6.700 | 0.400 | 0.300 | 1.000 | 0.100 |
+| **Van der Meer (1988)** | Simple Cubes | 2.0:1 | 6.700 | 0.400 | 0.300 | 1.000 | 0.100 |
+| **Van der Meer (1988)** | Simple Cubes | 1.5:1 | 7.374 | 0.400 | 0.300 | 1.101 | 0.100 |
 | **Chegini (2006)** | Antifer | 2.0:1 | 6.138 | 0.443 | 0.276 | 1.164 | 0.07 |
 | **Chegini (2006)** | Antifer | 1.5:1 | 6.951 | 0.443 | 0.291 | 1.082 | 0.082 |
 
 For Van der Meer Cubes (Slope 2.0:1) the script applies a scale factor adjustment to the Stability Number based on Hudson's formula property that breakwater stability varies linearly with slope (softer slopes lead to higher stability): 
 $$N_{s,adjusted} = N_s \times \left(\frac{2.0}{1.5}\right)^{1/3}$$
+This is equivalent to adopting k1 = 7.374 and k4 = 1.101.
+
 
 ### 2.3 The Head Design Strategy: Iso-Geometric Transfer
 
