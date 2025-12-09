@@ -5,7 +5,7 @@
 
 This repository contains computational tools designed for the hydraulic design of coastal breakwater armor layers. The software implements well-known empirical formulae to dimension artificial concrete units, specifically **Simple Cubes** (Van der Meer) and **Antifer Blocks** (Chegini & Aghtouman).
 
-A distinguishing feature of this tool is its **Iso-Geometric Design Philosophy** for the breakwater head. Rather than increasing the nominal diameter ($D_n$) of armor units or softening the slope ($m:1$) at the roundhead—which necessitates different casting moulds, storage logistics, and crane requirements—this calculator solves for the required **increase in concrete density** ($\rho_c$).
+A distinguishing feature of this tool is its **Iso-Geometric Design Philosophy** for the breakwater head. Rather than increasing the nominal diameter ($D_n$) of armor units and/or softening the slope ($m:1$) at the roundhead—which necessitates different casting moulds, storage logistics, and crane requirements—this calculator solves for the required **increase in concrete density** ($\rho_c$).
 
 This allows the Trunk and the Head to be constructed using geometrically identical units (same moulds) and identical slope angles, optimizing construction efficiency while meeting equal safety factors via material density adjustments.
 
@@ -61,7 +61,7 @@ The software utilizes the following database of coefficients:
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Van der Meer (1988)** | Simple Cubes | 2.0:1 | 6.700 | 0.400 | 0.300 | 1.000 | 0.100 |
 | **Van der Meer (1988)** | Simple Cubes | 1.5:1 | 7.374 | 0.400 | 0.300 | 1.101 | 0.100 |
-| **Chegini (2006)** | Antifer | 2.0:1 | 6.138 | 0.443 | 0.276 | 1.164 | 0.07 |
+| **Chegini (2006)** | Antifer | 2.0:1 | 6.138 | 0.443 | 0.276 | 1.164 | 0.070 |
 | **Chegini (2006)** | Antifer | 1.5:1 | 6.951 | 0.443 | 0.291 | 1.082 | 0.082 |
 
 For Van der Meer Cubes (Slope 2.0:1) the script applies a scale factor adjustment to the Stability Number based on Hudson's formula property that breakwater stability varies linearly with slope (softer slopes lead to higher stability): 
@@ -71,7 +71,7 @@ This is equivalent to adopting k1 = 7.374 and k4 = 1.101.
 
 ### 2.3 The Head Design Strategy: Iso-Geometric Transfer
 
-The breakwater head is subjected to 3D turbulence and wave breaking significantly higher than the trunk. Standard practice suggests increasing the block size. However, this tool uses a "Transfer Function" approach to maintain constant geometry ($D_n$ and Slope).
+The breakwater head is subjected to 3D turbulence and wave breaking significantly higher than the trunk. Standard practice suggests increasing the block size and/or softening the slope. However, this tool uses a "Transfer Function" approach to maintain constant geometry ($D_n$ and Slope).
 
 **Important Note on Weight:**
 While the Nominal Diameter ($D_n$) and Slope ($\cot\alpha$) are kept identical between Trunk and Head to utilize the same casting molds, the **Weight ($W$) is different**. Since the Head requires higher density concrete to maintain stability, the individual blocks at the head will be heavier than those at the trunk ($W_{head} > W_{trunk}$).
@@ -115,7 +115,7 @@ Grouping the stability coefficients:
 $$\Delta_{head} = \Delta_{trunk} \left( \frac{K_{D,trunk}}{K_{D,head}} \right)^{1/3}$$
 
 **6. Substitute the Stability Ratio**
-The "1.5" in the formula represents the ratio of the stability coefficients. The trunk is generally much more stable than the head for the same unit.
+The "1.5" in the formula represents the ratio of the stability coefficients for Antifer / modified cubes referred in coastal engineering literature. The trunk is generally much more stable than the head for the same unit.
 $$Ratio = \frac{K_{D,trunk}}{K_{D,head}} = 1.5$$
 
 Substituting this into the equation gives the final result used by the calculator:
