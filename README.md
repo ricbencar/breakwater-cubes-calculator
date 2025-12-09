@@ -115,7 +115,7 @@ Grouping the stability coefficients:
 $$\Delta_{head} = \Delta_{trunk} \left( \frac{K_{D,trunk}}{K_{D,head}} \right)^{1/3}$$
 
 **6. Substitute the Stability Ratio**
-The "1.5" in the formula represents the ratio of the stability coefficients for Antifer / modified cubes referred in coastal engineering literature. The trunk is generally much more stable than the head for the same unit.
+The "1.5" in the formula represents the ratio of the stability coefficients for Antifer / modified cubes tipically referred in coastal engineering literature. The trunk is generally much more stable than the head for the same unit.
 $$Ratio = \frac{K_{D,trunk}}{K_{D,head}} = 1.5$$
 
 Substituting this into the equation gives the final result used by the calculator:
