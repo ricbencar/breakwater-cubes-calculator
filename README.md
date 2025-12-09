@@ -121,7 +121,7 @@ $$Ratio = \frac{K_{D,trunk}}{K_{D,head}} = 1.5$$
 Substituting this into the equation gives the final result used by the calculator:
 $$\Delta_{head} = \Delta_{trunk} \cdot (1.5)^{1/3}$$
 
-### 2.4 Underlayer Geotechnical Design (EN 13383)
+### 2.4 Underlayer Standardised Rock Grading (EN 13383)
 
 The EN 13383 standard (specifically EN 13383-1: Specification and EN 13383-2: Test methods) provides a harmonized European system for specifying the properties and grading of armourstone used in civil engineering and hydraulic structures like breakwaters, seawalls, and riverbank protection. 
 
@@ -187,14 +187,14 @@ A standalone native Windows application using the Win32 API. It provides a visua
     * Automatic logging to `output.txt`.
 
 ### 3.6 Fortran CLI (`breakwater_calculator_cli.f90`)
-[cite_start]A modern Fortran implementation (Fortran 2008 standard) [cite: 1, 23] tailored for high-performance numerical environments.
+A modern Fortran implementation (Fortran 2008 standard) tailored for high-performance numerical environments.
 
 * **Compilation (gfortran):**
     ```bash
     gfortran -O3 -march=native -std=f2008 -Wall -Wextra -pedantic -Wconversion -static \
     -static-libgfortran -static-libgcc -o breakwater_calculator_cli breakwater_calculator_cli.f90
     ```
-* [cite_start]**Usage:** Same as the C++ CLI (Supports both Interactive and Argument modes)[cite: 25].
+* **Usage:** Same as the C++ CLI (Supports both Interactive and Argument modes).
 
 ---
 
