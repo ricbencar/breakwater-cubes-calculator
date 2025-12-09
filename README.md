@@ -59,8 +59,8 @@ The software utilizes the following database of coefficients:
 
 | Method | Block Type | Slope | $k_1$ | $k_2$ | $k_3$ | $k_4$ | $k_5$ |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Van der Meer (1988)** | Simple Cubes | 2.0:1 | 6.700 | 0.400 | 0.300 | 1.000 | 0.100 |
-| **Van der Meer (1988)** | Simple Cubes | 1.5:1 | 7.374 | 0.400 | 0.300 | 1.101 | 0.100 |
+| **Van der Meer (1988)** | Simple Cubes | 2.0:1 | 7.374 | 0.400 | 0.300 | 1.101 | 0.100 |
+| **Van der Meer (1988)** | Simple Cubes | 1.5:1 | 6.700 | 0.400 | 0.300 | 1.000 | 0.100 |
 | **Chegini (2006)** | Antifer | 2.0:1 | 6.138 | 0.443 | 0.276 | 1.164 | 0.070 |
 | **Chegini (2006)** | Antifer | 1.5:1 | 6.951 | 0.443 | 0.291 | 1.082 | 0.082 |
 
