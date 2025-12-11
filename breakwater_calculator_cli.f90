@@ -179,7 +179,7 @@ PROGRAM BreakwaterCalculator
 
     ! Data containers
     TYPE(FormulaParams) :: formulas(4)
-    TYPE(GradingDef) :: standard_gradings(15)
+    TYPE(GradingDef) :: standard_gradings(16)
     
     ! Local Variables for Main
     TYPE(Inputs) :: user_inputs
@@ -242,18 +242,19 @@ PROGRAM BreakwaterCalculator
     standard_gradings(3)%name="CP90/250";      standard_gradings(3)%min_kg=3.1_dp;    standard_gradings(3)%max_kg=9.3_dp
     standard_gradings(4)%name="CP45/180";      standard_gradings(4)%min_kg=0.4_dp;    standard_gradings(4)%max_kg=1.2_dp
     standard_gradings(5)%name="CP90/180";      standard_gradings(5)%min_kg=2.1_dp;    standard_gradings(5)%max_kg=2.8_dp
-    ! Light Rock Armour (LRA)
-    standard_gradings(6)%name="LRA5-40";       standard_gradings(6)%min_kg=10.0_dp;   standard_gradings(6)%max_kg=20.0_dp
-    standard_gradings(7)%name="LRA10-60";      standard_gradings(7)%min_kg=20.0_dp;   standard_gradings(7)%max_kg=35.0_dp
-    standard_gradings(8)%name="LRA40-200";     standard_gradings(8)%min_kg=80.0_dp;   standard_gradings(8)%max_kg=120.0_dp
-    standard_gradings(9)%name="LRA60-300";     standard_gradings(9)%min_kg=120.0_dp;  standard_gradings(9)%max_kg=190.0_dp
-    standard_gradings(10)%name="LRA15-300";    standard_gradings(10)%min_kg=45.0_dp;  standard_gradings(10)%max_kg=135.0_dp
-    ! Heavy Rock Armour (HRA)
-    standard_gradings(11)%name="HRA300-1000";  standard_gradings(11)%min_kg=540.0_dp; standard_gradings(11)%max_kg=690.0_dp
-    standard_gradings(12)%name="HRA1000-3000"; standard_gradings(12)%min_kg=1700.0_dp;standard_gradings(12)%max_kg=2100.0_dp
-    standard_gradings(13)%name="HRA3000-6000"; standard_gradings(13)%min_kg=4200.0_dp;standard_gradings(13)%max_kg=4800.0_dp
-    standard_gradings(14)%name="HRA6000-10000";standard_gradings(14)%min_kg=7500.0_dp;standard_gradings(14)%max_kg=8500.0_dp
-    standard_gradings(15)%name="HRA10000-15000";standard_gradings(15)%min_kg=12000.0_dp;standard_gradings(15)%max_kg=13000.0_dp
+    ! Light Mass Armourstone (LMA)
+    standard_gradings(6)%name="LMA5-40";       standard_gradings(6)%min_kg=10.0_dp;   standard_gradings(6)%max_kg=20.0_dp
+    standard_gradings(7)%name="LMA10-60";      standard_gradings(7)%min_kg=20.0_dp;   standard_gradings(7)%max_kg=35.0_dp
+    standard_gradings(8)%name="LMA15-120";     standard_gradings(7)%min_kg=35.0_dp;   standard_gradings(7)%max_kg=60.0_dp
+    standard_gradings(9)%name="LMA40-200";     standard_gradings(8)%min_kg=80.0_dp;   standard_gradings(8)%max_kg=120.0_dp
+    standard_gradings(10)%name="LMA60-300";     standard_gradings(9)%min_kg=120.0_dp;  standard_gradings(9)%max_kg=190.0_dp
+    standard_gradings(11)%name="LMA15-300";    standard_gradings(10)%min_kg=45.0_dp;  standard_gradings(10)%max_kg=135.0_dp
+    ! Heavy Masss Armourstone (HMA)
+    standard_gradings(12)%name="HMA300-1000";  standard_gradings(11)%min_kg=540.0_dp; standard_gradings(11)%max_kg=690.0_dp
+    standard_gradings(13)%name="HMA1000-3000"; standard_gradings(12)%min_kg=1700.0_dp;standard_gradings(12)%max_kg=2100.0_dp
+    standard_gradings(14)%name="HMA3000-6000"; standard_gradings(13)%min_kg=4200.0_dp;standard_gradings(13)%max_kg=4800.0_dp
+    standard_gradings(15)%name="HMA6000-10000";standard_gradings(14)%min_kg=7500.0_dp;standard_gradings(14)%max_kg=8500.0_dp
+    standard_gradings(16)%name="HMA10000-15000";standard_gradings(15)%min_kg=12000.0_dp;standard_gradings(15)%max_kg=13000.0_dp
 
     ! ----------------------------------------------------------------------
     ! DEFAULT INPUTS

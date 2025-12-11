@@ -129,18 +129,19 @@ class BreakwaterCalculator:
             {"name": "CP90/250",       "min_kg": 3.1,    "max_kg": 9.3},
             {"name": "CP45/180",       "min_kg": 0.4,    "max_kg": 1.2},
             {"name": "CP90/180",       "min_kg": 2.1,    "max_kg": 2.8},
-            # Light Rock Armour (LRA)
-            {"name": "LRA5-40",        "min_kg": 10,     "max_kg": 20},
-            {"name": "LRA10-60",       "min_kg": 20,     "max_kg": 35},
-            {"name": "LRA40-200",      "min_kg": 80,     "max_kg": 120},
-            {"name": "LRA60-300",      "min_kg": 120,    "max_kg": 190},
-            {"name": "LRA15-300",      "min_kg": 45,     "max_kg": 135},
-            # Heavy Rock Armour (HRA)
-            {"name": "HRA300-1000",    "min_kg": 540,    "max_kg": 690},
-            {"name": "HRA1000-3000",   "min_kg": 1700,   "max_kg": 2100},
-            {"name": "HRA3000-6000",   "min_kg": 4200,   "max_kg": 4800},
-            {"name": "HRA6000-10000",  "min_kg": 7500,   "max_kg": 8500},
-            {"name": "HRA10000-15000", "min_kg": 12000,  "max_kg": 13000},
+            # Light Mass Armourstone (LMA)
+            {"name": "LMA5-40",        "min_kg": 10,     "max_kg": 20},
+            {"name": "LMA10-60",       "min_kg": 20,     "max_kg": 35},
+            {"name": "LMA15-120",      "min_kg": 35,     "max_kg": 60},
+            {"name": "LMA40-200",      "min_kg": 80,     "max_kg": 120},
+            {"name": "LMA60-300",      "min_kg": 120,    "max_kg": 190},
+            {"name": "LMA15-300",      "min_kg": 45,     "max_kg": 135},
+            # Heavy Mass Armourstone (HMA)
+            {"name": "HMA300-1000",    "min_kg": 540,    "max_kg": 690},
+            {"name": "HMA1000-3000",   "min_kg": 1700,   "max_kg": 2100},
+            {"name": "HMA3000-6000",   "min_kg": 4200,   "max_kg": 4800},
+            {"name": "HMA6000-10000",  "min_kg": 7500,   "max_kg": 8500},
+            {"name": "HMA10000-15000", "min_kg": 12000,  "max_kg": 13000},
         ]
 		
         # ----------------------------------------------------------------------
