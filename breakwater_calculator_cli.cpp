@@ -112,8 +112,8 @@ struct FormulaParams {
 
 struct GradingDef {
     std::string name;
-    double min_kg;
-    double max_kg;
+    double NLL_kg;
+    double NUL_kg;
 };
 
 struct Dimensions {
@@ -125,9 +125,13 @@ struct Dimensions {
 struct UnderlayerResult {
     std::string grading_name;
     double target_W;
-    double W_mean;
-    double W1;
-    double W2;
+    double target_M50_kg;
+    double M50_kg;
+    double ELL_kg;
+    double EUL_kg;
+    double NLL_kg;
+    double NUL_kg;
+    double W_mean_kn;
     double Dn_rock;
     double r2;
     double f2;
@@ -238,20 +242,20 @@ public:
             {"CP45/180",       0.4,   1.2},
             {"CP90/180",       2.1,   2.8},
 
-            // Light Mass Armourstone (LMA)
-            {"LMA5-40",        10,    20},
-            {"LMA10-60",       20,    35},
-            {"LMA15-120",      35,    60},
-            {"LMA40-200",      80,    120},
-            {"LMA60-300",      120,   190},
-            {"LMA15-300",      45,    135},
+            // Light Mass Armourstone (LMA) - Values derived from names
+            {"LMA5-40",        5,     40},
+            {"LMA10-60",       10,    60},
+            {"LMA15-120",      15,    120},
+            {"LMA40-200",      40,    200},
+            {"LMA60-300",      60,    300},
+            {"LMA15-300",      15,    300},
 
-            // Heavy Mass Armourstone (HMA)
-            {"HMA300-1000",    540,   690},
-            {"HMA1000-3000",   1700,  2100},
-            {"HMA3000-6000",   4200,  4800},
-            {"HMA6000-10000",  7500,  8500},
-            {"HMA10000-15000", 12000, 13000}
+            // Heavy Mass Armourstone (HMA) - Values derived from names
+            {"HMA300-1000",    300,   1000},
+            {"HMA1000-3000",   1000,  3000},
+            {"HMA3000-6000",   3000,  6000},
+            {"HMA6000-10000",  6000,  10000},
+            {"HMA10000-15000", 10000, 15000}
         };
 		
         // ----------------------------------------------------------------------
@@ -274,54 +278,68 @@ public:
 
     UnderlayerResult calculate_underlayer_params(double W_armor) {
         double target_weight = W_armor / 10.0;
+        double target_mass_kg = (target_weight * 1000.0) / g;
         
         GradingDef selected_grading;
-        double min_diff = std::numeric_limits<double>::infinity();
-        
-        double final_w_mean = 0;
-        double final_w_min = 0;
-        double final_w_max = 0;
         bool found = false;
+        
+        double final_M50 = 0;
+        double final_NLL = 0;
+        double final_NUL = 0;
+
+        // --- CONTAINMENT & TIGHTEST RANGE LOGIC ---
+        double min_range_width = std::numeric_limits<double>::max();
 
         for (const auto& grading : standard_gradings) {
-            double w_min = grading.min_kg * g / 1000.0;
-            double w_max = grading.max_kg * g / 1000.0;
-            double w_mean_range = (w_min + w_max) / 2.0;
-            double diff = std::abs(w_mean_range - target_weight);
-            
-            if (diff < min_diff) {
-                min_diff = diff;
-                selected_grading = grading;
-                final_w_mean = w_mean_range;
-                final_w_min = w_min;
-                final_w_max = w_max;
-                found = true;
+            // Check containment: Target must be strictly inside nominal limits
+            if (target_mass_kg > grading.NLL_kg && target_mass_kg < grading.NUL_kg) {
+                
+                double current_range = grading.NUL_kg - grading.NLL_kg;
+                
+                // Update if this is the first match OR if this range is tighter (smaller)
+                if (current_range < min_range_width) {
+                    min_range_width = current_range;
+                    selected_grading = grading;
+                    final_NLL = grading.NLL_kg;
+                    final_NUL = grading.NUL_kg;
+                    final_M50 = 0.5 * (final_NLL + final_NUL);
+                    found = true;
+                }
             }
         }
         
-        // Fallback if vector empty (shouldn't happen)
+        // Fallback if no grading strictly contains the target mass
         if (!found && !standard_gradings.empty()) {
             selected_grading = standard_gradings[0];
-            final_w_min = selected_grading.min_kg * g / 1000.0;
-            final_w_max = selected_grading.max_kg * g / 1000.0;
-            final_w_mean = (final_w_min + final_w_max) / 2.0;
+            final_NLL = selected_grading.NLL_kg;
+            final_NUL = selected_grading.NUL_kg;
+            final_M50 = 0.5 * (final_NLL + final_NUL);
         }
 
-        double W_mean = final_w_mean;
-        double Dn_rock = std::pow(W_mean / W_rock_spec, 1.0/3.0);
+        // --- LIMIT CALCULATIONS ---
+        double ELL = 0.7 * final_NLL;
+        double EUL = 1.5 * final_NUL;
+        double W_mean_kn = (final_M50 * g) / 1000.0;
+        
+        double Dn_rock = std::pow(W_mean_kn / W_rock_spec, 1.0/3.0);
         double r2 = 2.0 * Dn_rock;
         double f2 = 100.0 * 2.0 * 1.0 * (1.0 - P_rock) / std::pow(Dn_rock, 2);
         
         UnderlayerResult res;
         res.grading_name = selected_grading.name;
         res.target_W = target_weight;
-        res.W_mean = W_mean;
-        res.W1 = final_w_min;
-        res.W2 = final_w_max;
+        res.target_M50_kg = target_mass_kg;
+        res.M50_kg = final_M50;
+        res.NLL_kg = final_NLL;
+        res.NUL_kg = final_NUL;
+        res.ELL_kg = ELL;
+        res.EUL_kg = EUL;
+        res.W_mean_kn = W_mean_kn;
         res.Dn_rock = Dn_rock;
         res.r2 = r2;
         res.f2 = f2;
         res.W_rock_spec = W_rock_spec;
+        
         return res;
     }
 
@@ -478,7 +496,7 @@ public:
         ss << "   Nod (Damage)                        : " << fmt(p.Nod, 2) << "\n";
         ss << "   Wc Trunk (Concrete Spec. Weight)    : " << fmt(p.Wc, 2) << " kN/m3" << "\n";
         ss << "   Ww (Water Specific Weight)          : " << fmt(p.Ww, 2) << " kN/m3" << "\n";
-        ss << "   Relative Density D=(Wc/Ww)-1        : " << fmt(i.delta, 5) << "\n";
+        ss << "   Relative Density D=(Wc/Ww)-1        : " << fmt(i.delta, 4) << "\n";
         ss << "   Structure Slope (TRUNK & HEAD)      : " << fmt(c.slope_ratio, 1) << ":1" << "\n";
         ss << "   Porosity (Cubes)                    : " << fmt(results.P_cubes * 100, 0) << "%" << "\n";
         ss << "   Porosity (Rock Layer)               : " << fmt(results.P_rock * 100, 0) << "%" << "\n";
@@ -486,11 +504,11 @@ public:
         
         ss << "2. INTERMEDIATE PARAMETERS" << "\n";
         ss << "   Wave Length (L0)                    : " << fmt(i.L0, 2) << " m" << "\n";
-        ss << "   wave number (k0 = 2*pi/L0)          : " << fmt(i.k0, 5) << "\n";
-        ss << "   wave steepness (s0m = Hs/L0)        : " << fmt(i.s0m, 5) << "\n";
+        ss << "   wave number (k0 = 2*pi/L0)          : " << fmt(i.k0, 4) << "\n";
+        ss << "   wave steepness (s0m = Hs/L0)        : " << fmt(i.s0m, 4) << "\n";
         ss << "   Number of waves (Nz)                : " << fmt(i.Nz, 0) << "\n";
-        ss << "   Stability Number TRUNK (Ns)         : " << fmt(i.Ns_trunk, 5) << "\n";
-        ss << "   Stability Number HEAD (Ns)          : " << fmt(fh.Ns, 5) << "\n";
+        ss << "   Stability Number TRUNK (Ns)         : " << fmt(i.Ns_trunk, 4) << "\n";
+        ss << "   Stability Number HEAD (Ns)          : " << fmt(fh.Ns, 4) << "\n";
         ss << std::string(80, '-') << "\n";
         
         ss << "3. ARMOR LAYER RESULTS - TRUNK" << "\n";
@@ -506,13 +524,15 @@ public:
         ss << "" << "\n";
         
         ss << "4. UNDERLAYER RESULTS - TRUNK" << "\n";
-        ss << "   Theoretical Target (W/10)           : " << fmt(ut.target_W, 2) << " kN" << "\n";
+        ss << "   Theoretical Target (W/10)           : " << fmt(ut.target_W, 2) << " kN (" << fmt(ut.target_M50_kg, 1) << " kg)\n";
         ss << "   Adopted rock grading                : " << ut.grading_name << "\n";
-        ss << "   Grading Min (Lower Limit)           : " << fmt(ut.W1, 2) << " kN" << "\n";
-        ss << "   Grading Max (Upper Limit)           : " << fmt(ut.W2, 2) << " kN" << "\n";
-        ss << "   Mean Weight (Used for thickness)    : " << fmt(ut.W_mean, 2) << " kN" << "\n";
-        ss << "   Nominal Diameter (Dn_rock)          : " << fmt(ut.Dn_rock, 3) << " m" << "\n";
-        ss << "   Double Layer Thickness (r2)         : " << fmt(ut.r2, 2) << " m" << "\n";
+        ss << "   Representative M50                  : " << fmt(ut.M50_kg, 1) << " kg\n";
+        ss << "   Nominal lower limit (NLL)           : " << fmt(ut.NLL_kg, 1) << " kg\n";
+        ss << "   Nominal upper limit (NUL)           : " << fmt(ut.NUL_kg, 1) << " kg\n";
+        ss << "   Extreme lower limit (ELL)           : " << fmt(ut.ELL_kg, 1) << " kg\n";
+        ss << "   Extreme upper limit (EUL)           : " << fmt(ut.EUL_kg, 1) << " kg\n";
+        ss << "   Nominal Diameter (Dn_rock)          : " << fmt(ut.Dn_rock, 3) << " m\n";
+        ss << "   Double Layer Thickness (r2)         : " << fmt(ut.r2, 2) << " m\n";
         ss << "   Packing Density, f2 [rocks/100m2]   : " << fmt(ut.f2, 2) << "\n";
         ss << std::string(80, '-') << "\n";
 
@@ -531,13 +551,15 @@ public:
         ss << "" << "\n";
         
         ss << "6. UNDERLAYER RESULTS - HEAD" << "\n";
-        ss << "   Theoretical Target (W/10)           : " << fmt(uh.target_W, 2) << " kN" << "\n";
+        ss << "   Theoretical Target (W/10)           : " << fmt(uh.target_W, 2) << " kN (" << fmt(uh.target_M50_kg, 1) << " kg)\n";
         ss << "   Adopted rock grading                : " << uh.grading_name << "\n";
-        ss << "   Grading Min (Lower Limit)           : " << fmt(uh.W1, 2) << " kN" << "\n";
-        ss << "   Grading Max (Upper Limit)           : " << fmt(uh.W2, 2) << " kN" << "\n";
-        ss << "   Mean Weight (Used for thickness)    : " << fmt(uh.W_mean, 2) << " kN" << "\n";
-        ss << "   Nominal Diameter (Dn_rock)          : " << fmt(uh.Dn_rock, 3) << " m" << "\n";
-        ss << "   Double Layer Thickness (r2)         : " << fmt(uh.r2, 2) << " m" << "\n";
+        ss << "   Representative M50                  : " << fmt(uh.M50_kg, 1) << " kg\n";
+        ss << "   Nominal lower limit (NLL)           : " << fmt(uh.NLL_kg, 1) << " kg\n";
+        ss << "   Nominal upper limit (NUL)           : " << fmt(uh.NUL_kg, 1) << " kg\n";
+        ss << "   Extreme lower limit (ELL)           : " << fmt(uh.ELL_kg, 1) << " kg\n";
+        ss << "   Extreme upper limit (EUL)           : " << fmt(uh.EUL_kg, 1) << " kg\n";
+        ss << "   Nominal Diameter (Dn_rock)          : " << fmt(uh.Dn_rock, 3) << " m\n";
+        ss << "   Double Layer Thickness (r2)         : " << fmt(uh.r2, 2) << " m\n";
         ss << "   Packing Density, f2 [rocks/100m2]   : " << fmt(uh.f2, 2) << "\n";
         ss << "================================================================================" << "\n";
 
@@ -567,11 +589,14 @@ int main(int argc, char* argv[]) {
         std::cout << prompt << " [" << default_val << "]: ";
         std::string input_str;
         std::getline(std::cin, input_str);
-        if (input_str.empty()) {
-            return default_val;
+        
+        size_t startpos = input_str.find_first_not_of(" \n\r\t");
+        if (startpos == std::string::npos) {
+            return default_val; // Empty or whitespace only
         }
+        
         try {
-            return std::stod(input_str);
+            return std::stod(input_str.substr(startpos));
         } catch (...) {
             return default_val;
         }
@@ -612,21 +637,32 @@ int main(int argc, char* argv[]) {
         std::cout << "\nOption [1-4]: ";
         std::string selection;
         std::getline(std::cin, selection);
-        selection.erase(selection.find_last_not_of(" \n\r\t") + 1);
+        
+        // Safely trim whitespace
+        size_t endpos = selection.find_last_not_of(" \n\r\t");
+        if (endpos != std::string::npos) {
+            selection.erase(endpos + 1);
+        } else {
+            selection.clear();
+        }
 
+        // Set formula ID, default to 1 if user just pressed ENTER or typed nonsense
         if (selection == "1" || selection == "2" || selection == "3" || selection == "4") {
             formula_id = std::stoi(selection);
-            user_inputs.Formula_ID = formula_id;
-
-            std::cout << "\n--- Enter Parameters (Press ENTER for Default) ---" << std::endl;
-            user_inputs.Hs = get_param("Hs (m)", calc.defaults.Hs);
-            user_inputs.Tm = get_param("Tm (s)", calc.defaults.Tm);
-            user_inputs.Nod = get_param("Nod (Damage)", calc.defaults.Nod);
-            user_inputs.Storm_Duration_hr = get_param("Duration (h)", calc.defaults.Storm_Duration_hr);
-            user_inputs.Wc = get_param("Concrete Weight Trunk (kN/m3)", calc.defaults.Wc);
+        } else {
+            formula_id = 1; 
         }
-    }
+        user_inputs.Formula_ID = formula_id;
 
+        // Unconditionally ask for parameters (matching Fortran behavior)
+        std::cout << "\n--- Enter Parameters (Press ENTER for Default) ---" << std::endl;
+        user_inputs.Hs = get_param("Hs (m)", calc.defaults.Hs);
+        user_inputs.Tm = get_param("Tm (s)", calc.defaults.Tm);
+        user_inputs.Nod = get_param("Nod (Damage)", calc.defaults.Nod);
+        user_inputs.Storm_Duration_hr = get_param("Duration (h)", calc.defaults.Storm_Duration_hr);
+        user_inputs.Wc = get_param("Concrete Weight Trunk (kN/m3)", calc.defaults.Wc);
+    }
+    
     try {
         FullResults results = calc.solve(formula_id, user_inputs);
         calc.generate_report_file(results, "output.txt");

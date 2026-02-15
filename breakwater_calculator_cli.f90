@@ -107,8 +107,8 @@ PROGRAM BreakwaterCalculator
 
     TYPE :: GradingDef
         CHARACTER(LEN=64) :: name
-        REAL(dp) :: min_kg
-        REAL(dp) :: max_kg
+        REAL(dp) :: NLL_kg
+        REAL(dp) :: NUL_kg
     END TYPE GradingDef
 
     TYPE :: Dimensions
@@ -120,9 +120,13 @@ PROGRAM BreakwaterCalculator
     TYPE :: UnderlayerResult
         CHARACTER(LEN=64) :: grading_name
         REAL(dp) :: target_W
-        REAL(dp) :: W_mean
-        REAL(dp) :: W1
-        REAL(dp) :: W2
+        REAL(dp) :: target_M50_kg
+        REAL(dp) :: M50_kg
+        REAL(dp) :: ELL_kg
+        REAL(dp) :: EUL_kg
+        REAL(dp) :: NLL_kg
+        REAL(dp) :: NUL_kg
+        REAL(dp) :: W_mean_kn
         REAL(dp) :: Dn_rock
         REAL(dp) :: r2
         REAL(dp) :: f2
@@ -237,24 +241,24 @@ PROGRAM BreakwaterCalculator
 
     ! ROCK GRADING DATABASE (EN 13383)
     ! Coarse / Light Gradings
-    standard_gradings(1)%name="CP45/125";      standard_gradings(1)%min_kg=0.4_dp;    standard_gradings(1)%max_kg=1.2_dp
-    standard_gradings(2)%name="CP63/180";      standard_gradings(2)%min_kg=1.2_dp;    standard_gradings(2)%max_kg=3.8_dp
-    standard_gradings(3)%name="CP90/250";      standard_gradings(3)%min_kg=3.1_dp;    standard_gradings(3)%max_kg=9.3_dp
-    standard_gradings(4)%name="CP45/180";      standard_gradings(4)%min_kg=0.4_dp;    standard_gradings(4)%max_kg=1.2_dp
-    standard_gradings(5)%name="CP90/180";      standard_gradings(5)%min_kg=2.1_dp;    standard_gradings(5)%max_kg=2.8_dp
+    standard_gradings(1)%name="CP45/125";      standard_gradings(1)%NLL_kg=0.4_dp;    standard_gradings(1)%NUL_kg=1.2_dp
+    standard_gradings(2)%name="CP63/180";      standard_gradings(2)%NLL_kg=1.2_dp;    standard_gradings(2)%NUL_kg=3.8_dp
+    standard_gradings(3)%name="CP90/250";      standard_gradings(3)%NLL_kg=3.1_dp;    standard_gradings(3)%NUL_kg=9.3_dp
+    standard_gradings(4)%name="CP45/180";      standard_gradings(4)%NLL_kg=0.4_dp;    standard_gradings(4)%NUL_kg=1.2_dp
+    standard_gradings(5)%name="CP90/180";      standard_gradings(5)%NLL_kg=2.1_dp;    standard_gradings(5)%NUL_kg=2.8_dp
     ! Light Mass Armourstone (LMA)
-    standard_gradings(6)%name="LMA5-40";       standard_gradings(6)%min_kg=10.0_dp;   standard_gradings(6)%max_kg=20.0_dp
-    standard_gradings(7)%name="LMA10-60";      standard_gradings(7)%min_kg=20.0_dp;   standard_gradings(7)%max_kg=35.0_dp
-    standard_gradings(8)%name="LMA15-120";     standard_gradings(7)%min_kg=35.0_dp;   standard_gradings(7)%max_kg=60.0_dp
-    standard_gradings(9)%name="LMA40-200";     standard_gradings(8)%min_kg=80.0_dp;   standard_gradings(8)%max_kg=120.0_dp
-    standard_gradings(10)%name="LMA60-300";     standard_gradings(9)%min_kg=120.0_dp;  standard_gradings(9)%max_kg=190.0_dp
-    standard_gradings(11)%name="LMA15-300";    standard_gradings(10)%min_kg=45.0_dp;  standard_gradings(10)%max_kg=135.0_dp
-    ! Heavy Masss Armourstone (HMA)
-    standard_gradings(12)%name="HMA300-1000";  standard_gradings(11)%min_kg=540.0_dp; standard_gradings(11)%max_kg=690.0_dp
-    standard_gradings(13)%name="HMA1000-3000"; standard_gradings(12)%min_kg=1700.0_dp;standard_gradings(12)%max_kg=2100.0_dp
-    standard_gradings(14)%name="HMA3000-6000"; standard_gradings(13)%min_kg=4200.0_dp;standard_gradings(13)%max_kg=4800.0_dp
-    standard_gradings(15)%name="HMA6000-10000";standard_gradings(14)%min_kg=7500.0_dp;standard_gradings(14)%max_kg=8500.0_dp
-    standard_gradings(16)%name="HMA10000-15000";standard_gradings(15)%min_kg=12000.0_dp;standard_gradings(15)%max_kg=13000.0_dp
+    standard_gradings(6)%name="LMA5-40";       standard_gradings(6)%NLL_kg=5.0_dp;    standard_gradings(6)%NUL_kg=40.0_dp
+    standard_gradings(7)%name="LMA10-60";      standard_gradings(7)%NLL_kg=10.0_dp;   standard_gradings(7)%NUL_kg=60.0_dp
+    standard_gradings(8)%name="LMA15-120";     standard_gradings(8)%NLL_kg=15.0_dp;   standard_gradings(8)%NUL_kg=120.0_dp
+    standard_gradings(9)%name="LMA40-200";     standard_gradings(9)%NLL_kg=40.0_dp;   standard_gradings(9)%NUL_kg=200.0_dp
+    standard_gradings(10)%name="LMA60-300";    standard_gradings(10)%NLL_kg=60.0_dp;  standard_gradings(10)%NUL_kg=300.0_dp
+    standard_gradings(11)%name="LMA15-300";    standard_gradings(11)%NLL_kg=15.0_dp;  standard_gradings(11)%NUL_kg=300.0_dp
+    ! Heavy Mass Armourstone (HMA)
+    standard_gradings(12)%name="HMA300-1000";  standard_gradings(12)%NLL_kg=300.0_dp; standard_gradings(12)%NUL_kg=1000.0_dp
+    standard_gradings(13)%name="HMA1000-3000"; standard_gradings(13)%NLL_kg=1000.0_dp;standard_gradings(13)%NUL_kg=3000.0_dp
+    standard_gradings(14)%name="HMA3000-6000"; standard_gradings(14)%NLL_kg=3000.0_dp;standard_gradings(14)%NUL_kg=6000.0_dp
+    standard_gradings(15)%name="HMA6000-10000";standard_gradings(15)%NLL_kg=6000.0_dp;standard_gradings(15)%NUL_kg=10000.0_dp
+    standard_gradings(16)%name="HMA10000-15000";standard_gradings(16)%NLL_kg=10000.0_dp;standard_gradings(16)%NUL_kg=15000.0_dp
 
     ! ----------------------------------------------------------------------
     ! DEFAULT INPUTS
@@ -335,52 +339,65 @@ CONTAINS
         TYPE(UnderlayerResult) :: res
         
         REAL(dp) :: target_weight
-        REAL(dp) :: min_diff, diff_val
-        REAL(dp) :: w_min, w_max, w_mean_range
-        REAL(dp) :: final_w_mean, final_w_min, final_w_max
+        REAL(dp) :: target_mass_kg
+        REAL(dp) :: min_range_width, current_range
+        REAL(dp) :: final_M50, final_NLL, final_NUL
+        REAL(dp) :: ELL, EUL, W_mean_kn
         INTEGER :: i
-
         CHARACTER(LEN=64) :: best_name
         LOGICAL :: found
 
         target_weight = W_armor / 10.0_dp
-        min_diff = HUGE(1.0_dp)
+        target_mass_kg = (target_weight * 1000.0_dp) / g
+        
+        min_range_width = HUGE(1.0_dp)
         found = .FALSE.
         
-        ! Initialize defaults
-        best_name = standard_gradings(1)%name
-        final_w_mean = 0.0_dp
-        final_w_min = 0.0_dp
-        final_w_max = 0.0_dp
-        
+        final_M50 = 0.0_dp
+        final_NLL = 0.0_dp
+        final_NUL = 0.0_dp
+
+        ! --- CONTAINMENT & TIGHTEST RANGE LOGIC ---
         DO i = 1, SIZE(standard_gradings)
-            w_min = standard_gradings(i)%min_kg * g / 1000.0_dp
-            w_max = standard_gradings(i)%max_kg * g / 1000.0_dp
-            w_mean_range = (w_min + w_max) / 2.0_dp
-            diff_val = ABS(w_mean_range - target_weight)
-            
-            IF (diff_val < min_diff) THEN
-                min_diff = diff_val
-                best_name = standard_gradings(i)%name
-                final_w_mean = w_mean_range
-                final_w_min = w_min
-                final_w_max = w_max
-                found = .TRUE.
+            ! Check containment: Target must be strictly inside nominal limits
+            IF (target_mass_kg > standard_gradings(i)%NLL_kg .AND. target_mass_kg < standard_gradings(i)%NUL_kg) THEN
+                current_range = standard_gradings(i)%NUL_kg - standard_gradings(i)%NLL_kg
+                
+                ! Update if this is the first match OR if this range is tighter (smaller)
+                IF (current_range < min_range_width) THEN
+                    min_range_width = current_range
+                    best_name = standard_gradings(i)%name
+                    final_NLL = standard_gradings(i)%NLL_kg
+                    final_NUL = standard_gradings(i)%NUL_kg
+                    final_M50 = 0.5_dp * (final_NLL + final_NUL)
+                    found = .TRUE.
+                END IF
             END IF
         END DO
         
-        IF (.NOT. found) THEN
-            final_w_min = standard_gradings(1)%min_kg * g / 1000.0_dp
-            final_w_max = standard_gradings(1)%max_kg * g / 1000.0_dp
-            final_w_mean = (final_w_min + final_w_max) / 2.0_dp
+        ! Fallback if no grading strictly contains the target mass
+        IF (.NOT. found .AND. SIZE(standard_gradings) > 0) THEN
+            best_name = standard_gradings(1)%name
+            final_NLL = standard_gradings(1)%NLL_kg
+            final_NUL = standard_gradings(1)%NUL_kg
+            final_M50 = 0.5_dp * (final_NLL + final_NUL)
         END IF
 
+        ! --- EN 13383 LIMIT CALCULATIONS ---
+        ELL = 0.7_dp * final_NLL
+        EUL = 1.5_dp * final_NUL
+        W_mean_kn = (final_M50 * g) / 1000.0_dp
+        
         res%grading_name = best_name
         res%target_W = target_weight
-        res%W_mean = final_w_mean
-        res%W1 = final_w_min
-        res%W2 = final_w_max
-        res%Dn_rock = (final_w_mean / W_rock_spec_val)**(1.0_dp/3.0_dp)
+        res%target_M50_kg = target_mass_kg
+        res%M50_kg = final_M50
+        res%NLL_kg = final_NLL
+        res%NUL_kg = final_NUL
+        res%ELL_kg = ELL
+        res%EUL_kg = EUL
+        res%W_mean_kn = W_mean_kn
+        res%Dn_rock = (W_mean_kn / W_rock_spec_val)**(1.0_dp/3.0_dp)
         res%r2 = 2.0_dp * res%Dn_rock
         res%f2 = 100.0_dp * 2.0_dp * 1.0_dp * (1.0_dp - P_rock) / (res%Dn_rock**2)
         res%W_rock_spec = W_rock_spec_val
@@ -570,14 +587,18 @@ CONTAINS
         WRITE(u, '(A)') ""
         
         WRITE(u, '(A)') "4. UNDERLAYER RESULTS - TRUNK"
-        WRITE(u, '(A, F0.2, A)') "   Theoretical Target (W/10)           : ", results%underlayer_trunk%target_W, " kN"
-        WRITE(u, '(A, A)')       "   Adopted rock grading                : ", TRIM(results%underlayer_trunk%grading_name)
-        WRITE(u, '(A, F0.2, A)') "   Grading Min (Lower Limit)           : ", results%underlayer_trunk%W1, " kN"
-        WRITE(u, '(A, F0.2, A)') "   Grading Max (Upper Limit)           : ", results%underlayer_trunk%W2, " kN"
-        WRITE(u, '(A, F0.2, A)') "   Mean Weight (Used for thickness)    : ", results%underlayer_trunk%W_mean, " kN"
-        WRITE(u, '(A, F0.3, A)') "   Nominal Diameter (Dn_rock)          : ", results%underlayer_trunk%Dn_rock, " m"
-        WRITE(u, '(A, F0.2, A)') "   Double Layer Thickness (r2)         : ", results%underlayer_trunk%r2, " m"
-        WRITE(u, '(A, F0.2)')    "   Packing Density, f2 [rocks/100m2]   : ", results%underlayer_trunk%f2
+        WRITE(u, '(A, F0.2, A, F0.1, A)') "   Theoretical Target (W/10)           : ", &
+            results%underlayer_trunk%target_W, " kN (", &
+            results%underlayer_trunk%target_M50_kg, " kg)"
+        WRITE(u, '(A, A)')                "   Adopted rock grading                : ", TRIM(results%underlayer_trunk%grading_name)
+        WRITE(u, '(A, F0.1, A)')          "   Representative M50                  : ", results%underlayer_trunk%M50_kg, " kg"
+        WRITE(u, '(A, F0.1, A)')          "   Nominal lower limit (NLL)           : ", results%underlayer_trunk%NLL_kg, " kg"
+        WRITE(u, '(A, F0.1, A)')          "   Nominal upper limit (NUL)           : ", results%underlayer_trunk%NUL_kg, " kg"
+        WRITE(u, '(A, F0.1, A)')          "   Extreme lower limit (ELL)           : ", results%underlayer_trunk%ELL_kg, " kg"
+        WRITE(u, '(A, F0.1, A)')          "   Extreme upper limit (EUL)           : ", results%underlayer_trunk%EUL_kg, " kg"
+        WRITE(u, '(A, F0.3, A)')          "   Nominal Diameter (Dn_rock)          : ", results%underlayer_trunk%Dn_rock, " m"
+        WRITE(u, '(A, F0.2, A)')          "   Double Layer Thickness (r2)         : ", results%underlayer_trunk%r2, " m"
+        WRITE(u, '(A, F0.2)')             "   Packing Density, f2 [rocks/100m2]   : ", results%underlayer_trunk%f2
         WRITE(u, '(A)') TRIM(separator)
         
         WRITE(u, '(A)') "5. ARMOR LAYER RESULTS - HEAD (High Density)"
@@ -595,16 +616,20 @@ CONTAINS
         WRITE(u, '(A)') ""
         
         WRITE(u, '(A)') "6. UNDERLAYER RESULTS - HEAD"
-        WRITE(u, '(A, F0.2, A)') "   Theoretical Target (W/10)           : ", results%underlayer_head%target_W, " kN"
-        WRITE(u, '(A, A)')       "   Adopted rock grading                : ", TRIM(results%underlayer_head%grading_name)
-        WRITE(u, '(A, F0.2, A)') "   Grading Min (Lower Limit)           : ", results%underlayer_head%W1, " kN"
-        WRITE(u, '(A, F0.2, A)') "   Grading Max (Upper Limit)           : ", results%underlayer_head%W2, " kN"
-        WRITE(u, '(A, F0.2, A)') "   Mean Weight (Used for thickness)    : ", results%underlayer_head%W_mean, " kN"
-        WRITE(u, '(A, F0.3, A)') "   Nominal Diameter (Dn_rock)          : ", results%underlayer_head%Dn_rock, " m"
-        WRITE(u, '(A, F0.2, A)') "   Double Layer Thickness (r2)         : ", results%underlayer_head%r2, " m"
-        WRITE(u, '(A, F0.2)')    "   Packing Density, f2 [rocks/100m2]   : ", results%underlayer_head%f2
+        WRITE(u, '(A, F0.2, A, F0.1, A)') "   Theoretical Target (W/10)           : ", &
+            results%underlayer_head%target_W, " kN (", &
+            results%underlayer_head%target_M50_kg, " kg)"
+        WRITE(u, '(A, A)')                "   Adopted rock grading                : ", TRIM(results%underlayer_head%grading_name)
+        WRITE(u, '(A, F0.1, A)')          "   Representative M50                  : ", results%underlayer_head%M50_kg, " kg"
+        WRITE(u, '(A, F0.1, A)')          "   Nominal lower limit (NLL)           : ", results%underlayer_head%NLL_kg, " kg"
+        WRITE(u, '(A, F0.1, A)')          "   Nominal upper limit (NUL)           : ", results%underlayer_head%NUL_kg, " kg"
+        WRITE(u, '(A, F0.1, A)')          "   Extreme lower limit (ELL)           : ", results%underlayer_head%ELL_kg, " kg"
+        WRITE(u, '(A, F0.1, A)')          "   Extreme upper limit (EUL)           : ", results%underlayer_head%EUL_kg, " kg"
+        WRITE(u, '(A, F0.3, A)')          "   Nominal Diameter (Dn_rock)          : ", results%underlayer_head%Dn_rock, " m"
+        WRITE(u, '(A, F0.2, A)')          "   Double Layer Thickness (r2)         : ", results%underlayer_head%r2, " m"
+        WRITE(u, '(A, F0.2)')             "   Packing Density, f2 [rocks/100m2]   : ", results%underlayer_head%f2
         WRITE(u, '(A)') "================================================================================"
-
+        
         CLOSE(u)
         
         PRINT *, ""

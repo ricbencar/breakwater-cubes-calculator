@@ -90,9 +90,9 @@ struct FormulaParams {
 };
 
 struct GradingDef {
-    std::wstring name;
-    double min_kg;
-    double max_kg;
+    std::string name;
+    double NLL_kg;
+    double NUL_kg;
 };
 
 struct Dimensions {
@@ -102,11 +102,15 @@ struct Dimensions {
 };
 
 struct UnderlayerResult {
-    std::wstring grading_name;
+    std::string grading_name;
     double target_W;
-    double W_mean;
-    double W1;
-    double W2;
+    double target_M50_kg;
+    double M50_kg;
+    double ELL_kg;
+    double EUL_kg;
+    double NLL_kg;
+    double NUL_kg;
+    double W_mean_kn;
     double Dn_rock;
     double r2;
     double f2;
@@ -193,26 +197,26 @@ public:
 
         standard_gradings = {
             // Coarse / Light Gradings
-            {L"CP45/125",       0.4,   1.2},
-            {L"CP63/180",       1.2,   3.8},
-            {L"CP90/250",       3.1,   9.3},
-            {L"CP45/180",       0.4,   1.2},
-            {L"CP90/180",       2.1,   2.8},
+            {"CP45/125",       0.4,   1.2},
+            {"CP63/180",       1.2,   3.8},
+            {"CP90/250",       3.1,   9.3},
+            {"CP45/180",       0.4,   1.2},
+            {"CP90/180",       2.1,   2.8},
 
-            // Light Mass Armourstone (LMA)
-            {L"LMA5-40",        10,    20},
-            {L"LMA10-60",       20,    35},
-            {L"LMA15-120",      35,    60},			
-            {L"LMA40-200",      80,    120},
-            {L"LMA60-300",      120,   190},
-            {L"LMA15-300",      45,    135},
+            // Light Mass Armourstone (LMA) - Values derived from names
+            {"LMA5-40",        5,     40},
+            {"LMA10-60",       10,    60},
+            {"LMA15-120",      15,    120},
+            {"LMA40-200",      40,    200},
+            {"LMA60-300",      60,    300},
+            {"LMA15-300",      15,    300},
 
-            // Heavy Mass Armourstone (HMA)
-            {L"HMA300-1000",    540,   690},
-            {L"HMA1000-3000",   1700,  2100},
-            {L"HMA3000-6000",   4200,  4800},
-            {L"HMA6000-10000",  7500,  8500},
-            {L"HMA10000-15000", 12000, 13000}
+            // Heavy Mass Armourstone (HMA) - Values derived from names
+            {"HMA300-1000",    300,   1000},
+            {"HMA1000-3000",   1000,  3000},
+            {"HMA3000-6000",   3000,  6000},
+            {"HMA6000-10000",  6000,  10000},
+            {"HMA10000-15000", 10000, 15000}
         };
 
         defaults = {
@@ -232,59 +236,75 @@ public:
 
     UnderlayerResult calculate_underlayer_params(double W_armor) {
         double target_weight = W_armor / 10.0;
+        double target_mass_kg = (target_weight * 1000.0) / g;
         
         GradingDef selected_grading;
-        double min_diff = std::numeric_limits<double>::infinity();
-        
-        double final_w_mean = 0;
-        double final_w_min = 0;
-        double final_w_max = 0;
         bool found = false;
+        
+        double final_M50 = 0;
+        double final_NLL = 0;
+        double final_NUL = 0;
+
+        // --- CONTAINMENT & TIGHTEST RANGE LOGIC ---
+        double min_range_width = std::numeric_limits<double>::max();
 
         for (const auto& grading : standard_gradings) {
-            double w_min = grading.min_kg * g / 1000.0;
-            double w_max = grading.max_kg * g / 1000.0;
-            double w_mean_range = (w_min + w_max) / 2.0;
-            double diff = std::abs(w_mean_range - target_weight);
-            
-            if (diff < min_diff) {
-                min_diff = diff;
-                selected_grading = grading;
-                final_w_mean = w_mean_range;
-                final_w_min = w_min;
-                final_w_max = w_max;
-                found = true;
+            // Check containment: Target must be strictly inside nominal limits
+            if (target_mass_kg > grading.NLL_kg && target_mass_kg < grading.NUL_kg) {
+                
+                double current_range = grading.NUL_kg - grading.NLL_kg;
+                
+                // Update if this is the first match OR if this range is tighter (smaller)
+                if (current_range < min_range_width) {
+                    min_range_width = current_range;
+                    selected_grading = grading;
+                    final_NLL = grading.NLL_kg;
+                    final_NUL = grading.NUL_kg;
+                    final_M50 = 0.5 * (final_NLL + final_NUL);
+                    found = true;
+                }
             }
         }
         
+        // Fallback if no grading strictly contains the target mass
         if (!found && !standard_gradings.empty()) {
             selected_grading = standard_gradings[0];
-            final_w_min = selected_grading.min_kg * g / 1000.0;
-            final_w_max = selected_grading.max_kg * g / 1000.0;
-            final_w_mean = (final_w_min + final_w_max) / 2.0;
+            final_NLL = selected_grading.NLL_kg;
+            final_NUL = selected_grading.NUL_kg;
+            final_M50 = 0.5 * (final_NLL + final_NUL);
         }
 
-        double W_mean = final_w_mean;
-        double Dn_rock = std::pow(W_mean / W_rock_spec, 1.0/3.0);
+        // --- CONTINUE WITH EXISTING LIMIT CALCULATIONS ---
+        double ELL = 0.7 * final_NLL;
+        double EUL = 1.5 * final_NUL;
+        double W_mean_kn = (final_M50 * g) / 1000.0;
+        
+        double Dn_rock = std::pow(W_mean_kn / W_rock_spec, 1.0/3.0);
         double r2 = 2.0 * Dn_rock;
         double f2 = 100.0 * 2.0 * 1.0 * (1.0 - P_rock) / std::pow(Dn_rock, 2);
         
         UnderlayerResult res;
         res.grading_name = selected_grading.name;
         res.target_W = target_weight;
-        res.W_mean = W_mean;
-        res.W1 = final_w_min;
-        res.W2 = final_w_max;
+        res.target_M50_kg = target_mass_kg;
+        res.M50_kg = final_M50;
+        res.NLL_kg = final_NLL;
+        res.NUL_kg = final_NUL;
+        res.ELL_kg = ELL;
+        res.EUL_kg = EUL;
+        res.W_mean_kn = W_mean_kn;
         res.Dn_rock = Dn_rock;
         res.r2 = r2;
         res.f2 = f2;
         res.W_rock_spec = W_rock_spec;
+        
         return res;
     }
-
+	
     FullResults solve(int formula_id, Inputs params) {
+        // 2. Load Coefficients
         if (formulas.find(formula_id) == formulas.end()) {
-            throw std::runtime_error("Invalid Formula ID Selected");
+            throw std::runtime_error("Invalid Formula ID");
         }
         
         FormulaParams coeffs = formulas[formula_id];
@@ -294,6 +314,7 @@ public:
         double k4 = coeffs.k4;
         double k5 = coeffs.k5;
 
+        // 3. Preliminary Hydraulic Calculations
         double L0 = calculate_L0(params.Tm);
         double k0 = (2 * M_PI) / L0;
         double s0m = params.Hs / L0;
@@ -302,6 +323,7 @@ public:
         double Nz = (params.Storm_Duration_hr * 3600.0) / params.Tm;
         double delta_trunk = (params.Wc / params.Ww) - 1.0;
 
+        // 4. Algorithmic Core (Chegini-Aghtouman / Van der Meer) - TRUNK
         double term_damage = std::pow(params.Nod, k2);
         double term_waves = std::pow(Nz, k3);
         double damage_wave_ratio = term_damage / term_waves;
@@ -312,23 +334,25 @@ public:
         double steepness_factor = std::pow(s0m, -k5);
         
         double Ns_trunk;
-        
-        // Van Der Meer (Slope 2.0) is ID 1
         if (formula_id == 1) {
             Ns_trunk = inv_f * steepness_factor * std::pow(2.0/1.5, 1.0/3.0);
         } else {
             Ns_trunk = inv_f * steepness_factor;
         }
 
+        // 5. Block Sizing (Armor) - TRUNK
         double Dn = params.Hs / (delta_trunk * Ns_trunk);
         double W_trunk = params.Wc * std::pow(Dn, 3);
         double packing_density_trunk = 100.0 * 2.0 * 1.1 * (1.0 - P_cubes) / std::pow(Dn, 2);
 
+        // 6. Hudson Comparative Calculation
         double slope = coeffs.slope_ratio;
         double kd_trunk_equiv = (params.Wc * std::pow(params.Hs, 3)) / (W_trunk * std::pow(delta_trunk, 3) * slope);
 
+        // 7. UNDERLAYER - TRUNK
         UnderlayerResult ul_trunk = calculate_underlayer_params(W_trunk);
 
+        // 8. HEAD CALCULATION (FIXED RATIO 1.5)
         double kd_ratio = KD_RATIO_FIXED;
         double kd_head_derived = kd_trunk_equiv / kd_ratio;
         double delta_head = delta_trunk * std::pow(kd_ratio, 1.0/3.0);
@@ -338,9 +362,13 @@ public:
         double Ns_head = params.Hs / (delta_head * Dn);
         double packing_density_head = 100.0 * 2.0 * 1.1 * (1.0 - P_cubes) / std::pow(Dn, 2);
 
+        // 9. UNDERLAYER - HEAD
         UnderlayerResult ul_head = calculate_underlayer_params(W_head);
 
+        // 10. Armor Layer Details (Common)
         double r1 = 2.0 * 1.1 * Dn;
+
+        // Dimensions
         double vol_trunk = W_trunk / params.Wc;
         double h_trunk = std::pow(vol_trunk / 1.0247, 1.0/3.0);
         double a_trunk = 1.086 * h_trunk;
@@ -351,6 +379,7 @@ public:
         double a_head = 1.086 * h_head;
         double b_head = 1.005 * h_head;
 
+        // 11. Compile Results
         FullResults results;
         results.inputs = params;
         results.coefficients = coeffs;
@@ -390,8 +419,6 @@ public:
         return results;
     }
 };
-
-// --- Report Formatting ---
 
 std::wstring format_report(const FullResults& results) {
     std::wstringstream ss;
@@ -450,17 +477,21 @@ std::wstring format_report(const FullResults& results) {
        << L"   Double Layer Thickness (r1)         : " << ft.r1 << L" m\n"
        << L"   Packing Density, d [units/100m2]    : " << ft.packing_density << L"\n"
        << L"\n";
-    
-    ss << L"4. UNDERLAYER RESULTS - TRUNK\n"
-       << L"   Theoretical Target (W/10)           : " << ut.target_W << L" kN\n"
-       << L"   Adopted rock grading                : " << ut.grading_name << L"\n"
-       << L"   Grading Min (Lower Limit)           : " << ut.W1 << L" kN\n"
-       << L"   Grading Max (Upper Limit)           : " << ut.W2 << L" kN\n"
-       << L"   Mean Weight (Used for thickness)    : " << ut.W_mean << L" kN\n"
-       << L"   Nominal Diameter (Dn_rock)          : " << fmt(ut.Dn_rock, 3) << L" m\n"
-       << L"   Double Layer Thickness (r2)         : " << ut.r2 << L" m\n"
-       << L"   Packing Density, f2 [rocks/100m2]   : " << ut.f2 << L"\n"
-       << L"--------------------------------------------------------------------------------\n";
+
+    std::wstring ut_grading_wide(ut.grading_name.begin(), ut.grading_name.end());
+
+        ss << L"4. UNDERLAYER RESULTS - TRUNK\n";
+        ss << L"   Theoretical Target (W/10)           : " << fmt(ut.target_W, 2) << L" kN (" << fmt(ut.target_M50_kg, 1) << L" kg)\n";
+        ss << L"   Adopted rock grading                : " << ut_grading_wide << L"\n";
+        ss << L"   Representative M50                  : " << fmt(ut.M50_kg, 1) << L" kg\n";
+        ss << L"   Nominal lower limit (NLL)           : " << fmt(ut.NLL_kg, 1) << L" kg\n";
+        ss << L"   Nominal upper limit (NUL)           : " << fmt(ut.NUL_kg, 1) << L" kg\n";
+        ss << L"   Extreme lower limit (ELL)           : " << fmt(ut.ELL_kg, 1) << L" kg\n";
+        ss << L"   Extreme upper limit (EUL)           : " << fmt(ut.EUL_kg, 1) << L" kg\n";
+        ss << L"   Nominal Diameter (Dn_rock)          : " << fmt(ut.Dn_rock, 3) << L" m\n";
+        ss << L"   Double Layer Thickness (r2)         : " << fmt(ut.r2, 2) << L" m\n";
+        ss << L"   Packing Density, f2 [rocks/100m2]   : " << fmt(ut.f2, 2) << L"\n";
+        ss << std::wstring(80, L'-') << L"\n";
 
     ss << L"5. ARMOR LAYER RESULTS - HEAD (High Density)\n"
        << L"   *Maintains same Dn and Slope as Trunk*\n"
@@ -475,17 +506,21 @@ std::wstring format_report(const FullResults& results) {
        << L"   Mass (ton)                          : " << fh.Mass_tonnes << L" t\n"
        << L"   Packing Density, d [units/100m2]    : " << fh.packing_density << L"\n"
        << L"\n";
-    
-    ss << L"6. UNDERLAYER RESULTS - HEAD\n"
-       << L"   Theoretical Target (W/10)           : " << uh.target_W << L" kN\n"
-       << L"   Adopted rock grading                : " << uh.grading_name << L"\n"
-       << L"   Grading Min (Lower Limit)           : " << uh.W1 << L" kN\n"
-       << L"   Grading Max (Upper Limit)           : " << uh.W2 << L" kN\n"
-       << L"   Mean Weight (Used for thickness)    : " << uh.W_mean << L" kN\n"
-       << L"   Nominal Diameter (Dn_rock)          : " << fmt(uh.Dn_rock, 3) << L" m\n"
-       << L"   Double Layer Thickness (r2)         : " << uh.r2 << L" m\n"
-       << L"   Packing Density, f2 [rocks/100m2]   : " << uh.f2 << L"\n"
-       << L"================================================================================\n\n";
+
+    std::wstring uh_grading_wide(uh.grading_name.begin(), uh.grading_name.end());
+
+    ss << L"6. UNDERLAYER RESULTS - HEAD\n";
+        ss << L"   Theoretical Target (W/10)           : " << fmt(uh.target_W, 2) << L" kN (" << fmt(uh.target_M50_kg, 1) << L" kg)\n";
+        ss << L"   Adopted rock grading                : " << uh_grading_wide << L"\n";
+        ss << L"   Representative M50                  : " << fmt(uh.M50_kg, 1) << L" kg\n";
+        ss << L"   Nominal lower limit (NLL)           : " << fmt(uh.NLL_kg, 1) << L" kg\n";
+        ss << L"   Nominal upper limit (NUL)           : " << fmt(uh.NUL_kg, 1) << L" kg\n";
+        ss << L"   Extreme lower limit (ELL)           : " << fmt(uh.ELL_kg, 1) << L" kg\n";
+        ss << L"   Extreme upper limit (EUL)           : " << fmt(uh.EUL_kg, 1) << L" kg\n";
+        ss << L"   Nominal Diameter (Dn_rock)          : " << fmt(uh.Dn_rock, 3) << L" m\n";
+        ss << L"   Double Layer Thickness (r2)         : " << fmt(uh.r2, 2) << L" m\n";
+        ss << L"   Packing Density, f2 [rocks/100m2]   : " << fmt(uh.f2, 2) << L"\n";
+        ss << std::wstring(80, L'=') << L"\n";
 
     return ss.str();
 }

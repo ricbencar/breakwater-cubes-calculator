@@ -124,24 +124,24 @@ class BreakwaterCalculator:
         # These represent standard commercial availability of rock.
         self.standard_gradings = [
             # Coarse / Light Gradings
-            {"name": "CP45/125",       "min_kg": 0.4,    "max_kg": 1.2},
-            {"name": "CP63/180",       "min_kg": 1.2,    "max_kg": 3.8},
-            {"name": "CP90/250",       "min_kg": 3.1,    "max_kg": 9.3},
-            {"name": "CP45/180",       "min_kg": 0.4,    "max_kg": 1.2},
-            {"name": "CP90/180",       "min_kg": 2.1,    "max_kg": 2.8},
+            {"name": "CP45/125",       "NLL_kg": 0.4,    "NUL_kg": 1.2},
+            {"name": "CP63/180",       "NLL_kg": 1.2,    "NUL_kg": 3.8},
+            {"name": "CP90/250",       "NLL_kg": 3.1,    "NUL_kg": 9.3},
+            {"name": "CP45/180",       "NLL_kg": 0.4,    "NUL_kg": 1.2},
+            {"name": "CP90/180",       "NLL_kg": 2.1,    "NUL_kg": 2.8},
             # Light Mass Armourstone (LMA)
-            {"name": "LMA5-40",        "min_kg": 10,     "max_kg": 20},
-            {"name": "LMA10-60",       "min_kg": 20,     "max_kg": 35},
-            {"name": "LMA15-120",      "min_kg": 35,     "max_kg": 60},
-            {"name": "LMA40-200",      "min_kg": 80,     "max_kg": 120},
-            {"name": "LMA60-300",      "min_kg": 120,    "max_kg": 190},
-            {"name": "LMA15-300",      "min_kg": 45,     "max_kg": 135},
+            {"name": "LMA5-40",        "NLL_kg": 5,      "NUL_kg": 40},
+            {"name": "LMA10-60",       "NLL_kg": 10,     "NUL_kg": 60},
+            {"name": "LMA15-120",      "NLL_kg": 15,     "NUL_kg": 120},
+            {"name": "LMA40-200",      "NLL_kg": 40,     "NUL_kg": 200},
+            {"name": "LMA60-300",      "NLL_kg": 60,     "NUL_kg": 300},
+            {"name": "LMA15-300",      "NLL_kg": 15,     "NUL_kg": 300},
             # Heavy Mass Armourstone (HMA)
-            {"name": "HMA300-1000",    "min_kg": 540,    "max_kg": 690},
-            {"name": "HMA1000-3000",   "min_kg": 1700,   "max_kg": 2100},
-            {"name": "HMA3000-6000",   "min_kg": 4200,   "max_kg": 4800},
-            {"name": "HMA6000-10000",  "min_kg": 7500,   "max_kg": 8500},
-            {"name": "HMA10000-15000", "min_kg": 12000,  "max_kg": 13000},
+            {"name": "HMA300-1000",    "NLL_kg": 300,    "NUL_kg": 1000},
+            {"name": "HMA1000-3000",   "NLL_kg": 1000,   "NUL_kg": 3000},
+            {"name": "HMA3000-6000",   "NLL_kg": 3000,   "NUL_kg": 6000},
+            {"name": "HMA6000-10000",  "NLL_kg": 6000,   "NUL_kg": 10000},
+            {"name": "HMA10000-15000", "NLL_kg": 10000,  "NUL_kg": 15000},
         ]
 		
         # ----------------------------------------------------------------------
@@ -163,60 +163,54 @@ class BreakwaterCalculator:
 
     def calculate_underlayer_params(self, W_armor):
         """
-        Helper to calculate underlayer parameters.
-        Logic: The underlayer rock is typically 1/10th the weight of the armor unit.
-        This function calculates that target, then finds the closest EN 13383 
-        standard rock grade.
+        Calculates underlayer parameters.
+        Logic: Target rock is 1/10th the weight of armor. Finds the EN 13383 grading
+        that strictly contains the target mass, breaking ties with the tightest range.
         """
         target_weight = W_armor / 10.0
+        target_mass_kg = (target_weight * 1000.0) / self.g
         
         selected_grading = None
-        min_diff = float('inf')
+        min_range_width = float('inf')
         
-        # Iterate through standard gradings to find the closest match
+        # --- CONTAINMENT & TIGHTEST RANGE LOGIC ---
         for grading in self.standard_gradings:
-            # Convert Mass (kg) to Weight (kN)
-            # W = m * g / 1000
-            w_min = grading["min_kg"] * self.g / 1000.0
-            w_max = grading["max_kg"] * self.g / 1000.0
-            
-            # Calculate Mean Weight of the range
-            w_mean_range = (w_min + w_max) / 2.0
-            
-            # Find closest to target (W_armor/10)
-            diff = abs(w_mean_range - target_weight)
-            
-            if diff < min_diff:
-                min_diff = diff
-                selected_grading = {
-                    "grading_name": grading["name"],
-                    "W_mean": w_mean_range, # Use mean of the range for thickness calculations
-                    "W1": w_min,
-                    "W2": w_max,
-                    "target_W": target_weight
-                }
+            # Check containment: Target must be strictly inside nominal limits
+            if grading["NLL_kg"] < target_mass_kg < grading["NUL_kg"]:
+                current_range = grading["NUL_kg"] - grading["NLL_kg"]
+                
+                # Update if this is the first match OR if this range is tighter (smaller)
+                if current_range < min_range_width:
+                    min_range_width = current_range
+                    selected_grading = grading
+                    
+        # Fallback if no grading strictly contains the target mass
+        if not selected_grading and self.standard_gradings:
+            selected_grading = self.standard_gradings[0]
+
+        final_NLL = selected_grading["NLL_kg"]
+        final_NUL = selected_grading["NUL_kg"]
+        final_M50 = 0.5 * (final_NLL + final_NUL)
         
-        # Use the selected grading's mean weight for hydraulic calculations
-        W_mean = selected_grading["W_mean"]
+        # --- EN 13383 LIMIT CALCULATIONS ---
+        ELL = 0.7 * final_NLL
+        EUL = 1.5 * final_NUL
+        W_mean_kn = (final_M50 * self.g) / 1000.0
         
-        # Calculate nominal diameter of the rock: Dn = (Weight / SpecificWeight)^(1/3)
-        Dn_rock = (W_mean / self.W_rock_spec) ** (1/3.0)
-        
-        # Thickness r2 (Double layer rock)
+        Dn_rock = (W_mean_kn / self.W_rock_spec) ** (1/3.0)
         r2 = 2.0 * Dn_rock
-        
-        # Packing Density f2 (Rocks per 100m2)
-        # Formula: 100 * n_layers * k_layer * (1 - Porosity) / Dn^2
-        # Here n=2, k=1.0 approx.
         f2 = 100.0 * 2.0 * 1.0 * (1.0 - self.P_rock) / (Dn_rock**2)
         
-        # Return merged dictionary containing all hydraulic and physical properties
         return {
-            "grading_name": selected_grading["grading_name"],
-            "target_W": selected_grading["target_W"],
-            "W_mean": W_mean, 
-            "W1": selected_grading["W1"], 
-            "W2": selected_grading["W2"],
+            "grading_name": selected_grading["name"],
+            "target_W": target_weight,
+            "target_M50_kg": target_mass_kg,
+            "M50_kg": final_M50,
+            "NLL_kg": final_NLL,
+            "NUL_kg": final_NUL,
+            "ELL_kg": ELL,
+            "EUL_kg": EUL,
+            "W_mean_kn": W_mean_kn, 
             "Dn_rock": Dn_rock, 
             "r2": r2, 
             "f2": f2,
@@ -431,7 +425,7 @@ class BreakwaterCalculator:
         lines.append(f"   Nod (Damage)                        : {p['Nod']:.2f}")
         lines.append(f"   Wc Trunk (Concrete Spec. Weight)    : {p['Wc']:.2f} kN/m3")
         lines.append(f"   Ww (Water Specific Weight)          : {p['Ww']:.2f} kN/m3")
-        lines.append(f"   Relative Density D=(Wc/Ww)-1        : {i['delta']:.5f}")
+        lines.append(f"   Relative Density D=(Wc/Ww)-1        : {i['delta']:.4f}")
         lines.append(f"   Structure Slope (TRUNK & HEAD)      : {c['slope_ratio']}:1")
         lines.append(f"   Porosity (Cubes)                    : {const['P_cubes']*100:.0f}%")
         lines.append(f"   Porosity (Rock Layer)               : {const['P_rock']*100:.0f}%")
@@ -440,11 +434,11 @@ class BreakwaterCalculator:
         # --- INTERMEDIATE PARAMETERS ---
         lines.append("2. INTERMEDIATE PARAMETERS")
         lines.append(f"   Wave Length (L0)                    : {i['L0']:.2f} m")
-        lines.append(f"   wave number (k0 = 2*pi/L0)          : {i['k0']:.5f}")
-        lines.append(f"   wave steepness (s0m = Hs/L0)        : {i['s0m']:.5f}")
+        lines.append(f"   wave number (k0 = 2*pi/L0)          : {i['k0']:.4f}")
+        lines.append(f"   wave steepness (s0m = Hs/L0)        : {i['s0m']:.4f}")
         lines.append(f"   Number of waves (Nz)                : {i['Nz']:.0f}")
-        lines.append(f"   Stability Number TRUNK (Ns)         : {i['Ns_trunk']:.5f}")
-        lines.append(f"   Stability Number HEAD (Ns)          : {fh['Ns_head']:.5f}")
+        lines.append(f"   Stability Number TRUNK (Ns)         : {i['Ns_trunk']:.4f}")
+        lines.append(f"   Stability Number HEAD (Ns)          : {fh['Ns_head']:.4f}")
         lines.append("-" * 80)
         
         # --- TRUNK SECTION ---
@@ -462,11 +456,13 @@ class BreakwaterCalculator:
         
         # --- UNDERLAYER TRUNK ---
         lines.append("4. UNDERLAYER RESULTS - TRUNK")
-        lines.append(f"   Theoretical Target (W/10)           : {ut['target_W']:.2f} kN")
+        lines.append(f"   Theoretical Target (W/10)           : {ut['target_W']:.2f} kN ({ut['target_M50_kg']:.1f} kg)")
         lines.append(f"   Adopted rock grading                : {ut['grading_name']}")
-        lines.append(f"   Grading Min (Lower Limit)           : {ut['W1']:.2f} kN")
-        lines.append(f"   Grading Max (Upper Limit)           : {ut['W2']:.2f} kN")
-        lines.append(f"   Mean Weight (Used for thickness)    : {ut['W_mean']:.2f} kN")
+        lines.append(f"   Representative M50                  : {ut['M50_kg']:.1f} kg")
+        lines.append(f"   Nominal lower limit (NLL)           : {ut['NLL_kg']:.1f} kg")
+        lines.append(f"   Nominal upper limit (NUL)           : {ut['NUL_kg']:.1f} kg")
+        lines.append(f"   Extreme lower limit (ELL)           : {ut['ELL_kg']:.1f} kg")
+        lines.append(f"   Extreme upper limit (EUL)           : {ut['EUL_kg']:.1f} kg")
         lines.append(f"   Nominal Diameter (Dn_rock)          : {ut['Dn_rock']:.3f} m")
         lines.append(f"   Double Layer Thickness (r2)         : {ut['r2']:.2f} m")
         lines.append(f"   Packing Density, f2 [rocks/100m2]   : {ut['f2']:.2f}")
@@ -489,15 +485,18 @@ class BreakwaterCalculator:
         
         # --- UNDERLAYER HEAD ---
         lines.append("6. UNDERLAYER RESULTS - HEAD")
-        lines.append(f"   Theoretical Target (W/10)           : {uh['target_W']:.2f} kN")
+        lines.append(f"   Theoretical Target (W/10)           : {uh['target_W']:.2f} kN ({uh['target_M50_kg']:.1f} kg)")
         lines.append(f"   Adopted rock grading                : {uh['grading_name']}")
-        lines.append(f"   Grading Min (Lower Limit)           : {uh['W1']:.2f} kN")
-        lines.append(f"   Grading Max (Upper Limit)           : {uh['W2']:.2f} kN")
-        lines.append(f"   Mean Weight (Used for thickness)    : {uh['W_mean']:.2f} kN")
+        lines.append(f"   Representative M50                  : {uh['M50_kg']:.1f} kg")
+        lines.append(f"   Nominal lower limit (NLL)           : {uh['NLL_kg']:.1f} kg")
+        lines.append(f"   Nominal upper limit (NUL)           : {uh['NUL_kg']:.1f} kg")
+        lines.append(f"   Extreme lower limit (ELL)           : {uh['ELL_kg']:.1f} kg")
+        lines.append(f"   Extreme upper limit (EUL)           : {uh['EUL_kg']:.1f} kg")
         lines.append(f"   Nominal Diameter (Dn_rock)          : {uh['Dn_rock']:.3f} m")
         lines.append(f"   Double Layer Thickness (r2)         : {uh['r2']:.2f} m")
         lines.append(f"   Packing Density, f2 [rocks/100m2]   : {uh['f2']:.2f}")
-        lines.append("================================================================================")
+        lines.append("=" * 80)
+        lines.append("")
         
         try:
             with open(filepath, "w", encoding="utf-8") as file:
@@ -526,29 +525,31 @@ def main():
     except KeyboardInterrupt:
         sys.exit(0)
 
-    formula_id = 1  # Default set to 1 (Now VdM 2.0)
-    user_inputs = None
-
+    # Set formula ID, default to 1 if user just pressed ENTER or typed nonsense
     if selection in ['1', '2', '3', '4']:
         formula_id = int(selection)
-        print("\n--- Enter Parameters (Press ENTER for Default) ---")
-        
-        def get_param(prompt, default_val):
-            val = input(f"{prompt} [{default_val}]: ").strip()
-            return float(val) if val else default_val
+    else:
+        formula_id = 1
 
-        try:
-            defaults = calc.defaults
-            user_inputs = {
-                "Hs": get_param("Hs (m)", defaults["Hs"]),
-                "Tm": get_param("Tm (s)", defaults["Tm"]),
-                "Nod": get_param("Nod (Damage)", defaults["Nod"]),
-                "Storm_Duration_hr": get_param("Duration (h)", defaults["Storm_Duration_hr"]),
-                "Wc": get_param("Concrete Weight Trunk (kN/m3)", defaults["Wc"])
-            }
-        except ValueError:
-            print("\n Error: Non-numeric value.")
-            sys.exit(1)
+    # Unconditionally ask for parameters (matching Fortran/C++ behavior)
+    print("\n--- Enter Parameters (Press ENTER for Default) ---")
+    
+    def get_param(prompt, default_val):
+        val = input(f"{prompt} [{default_val}]: ").strip()
+        return float(val) if val else default_val
+
+    try:
+        defaults = calc.defaults
+        user_inputs = {
+            "Hs": get_param("Hs (m)", defaults["Hs"]),
+            "Tm": get_param("Tm (s)", defaults["Tm"]),
+            "Nod": get_param("Nod (Damage)", defaults["Nod"]),
+            "Storm_Duration_hr": get_param("Duration (h)", defaults["Storm_Duration_hr"]),
+            "Wc": get_param("Concrete Weight Trunk (kN/m3)", defaults["Wc"])
+        }
+    except ValueError:
+        print("\n Error: Non-numeric value.")
+        sys.exit(1)
 
     try:
         results = calc.solve(formula_id, user_inputs)
