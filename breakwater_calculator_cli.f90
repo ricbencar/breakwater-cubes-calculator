@@ -3,68 +3,234 @@
 ! ======================================================================================
 !
 ! 1. PURPOSE:
-!    This software calculates the required size and weight of artificial concrete 
-!    armor units (specifically Cubes and Antifer blocks) for rubble mound breakwaters.
-!    It implements an "Iso-Geometric Design Philosophy" to dimension two sections:
-!    - The Trunk (the main longitudinal section).
-!    - The Head (the exposed roundhead).
+!    This software performs preliminary hydraulic sizing of rubble-mound
+!    breakwater armor made with artificial concrete units and the associated
+!    rock underlayers.
+!
+!    The armor-unit families currently implemented in the code are:
+!    - Simple Cubes
+!    - Antifer Blocks
+!
+!    The program dimensions two structural zones:
+!    - The Trunk (main longitudinal section)
+!    - The Head (the exposed roundhead / end section)
+!
+!    The implemented design philosophy is iso-geometric, but not iso-weight:
+!    - the nominal diameter is kept the same at Trunk and Head;
+!    - the armor-unit geometry is kept the same at Trunk and Head;
+!    - the slope is kept the same at Trunk and Head;
+!    - the Head unit weight increases through higher required concrete specific
+!      weight rather than through larger unit size.
 !
 ! 2. METHODOLOGY:
-!    The calculator utilizes empirical power-law formulas derived from hydraulic 
-!    model testing and European standards:
-!    - For Simple Cubes: Uses Van der Meer (1988) stability formulas.
-!    - For Antifer Blocks: Uses Chegini & Aghtouman (2006) power-law formulas.
-!    - For Underlayers: Automatic sizing based on EN 13383 Standard Rock Gradings.
+!    The calculator uses empirical hydraulic-stability formulas derived from
+!    physical model testing together with an internal EN 13383 rock-grading
+!    database.
 !
-! 3. DESIGN LOGIC & STRATEGY:
-!    a. Trunk Stability: 
-!       Calculates the Stability Number (Ns) based on wave steepness (s0m), storm 
-!       duration (Nz), and damage level (Nod). This determines the nominal 
-!       diameter (Dn) and Weight (W).
+!    Implemented armor formulas:
+!    - Simple Cubes: Van der Meer (1988)
+!    - Antifer Blocks: Chegini & Aghtouman (2006)
 !
-!    b. Head Design (Iso-Geometric Transfer Strategy): 
-!       The breakwater head endures higher turbulence (3D effects) than the trunk.
-!       Rather than increasing block size or softening the slope—which requires 
-!       different molds or crane logistics—this tool solves for the required 
-!       increase in Concrete Density (rho_c).
-!       
-!       - Principle: Maintain constant Geometry (Dn) and Slope (alpha).
-!       - Transfer Function: Delta_head = Delta_trunk * (1.5)^(1/3)
-!       - Result: Head blocks use the same molds but are heavier due to higher density.
+!    Underlayers:
+!    - automatic grading selection from an embedded EN 13383 mass-based
+!      grading table.
 !
-! 4. TECHNICAL BIBLIOGRAPHY & REFERENCES:
+! 3. DESIGN LOGIC & COMPUTATIONAL STRATEGY:
 !
-! 1. Van der Meer, J.W. (1988). "Rock Slopes and Gravel Beaches Under Wave Attack."
-!    Doctoral Thesis, Delft University of Technology.
+!    a. Exposed storm input:
+!       The storm variable entered by the user is the number of waves, Nz.
+!       Storm duration is not entered directly; it is computed internally as:
 !
-! 2. Van der Meer, J.W. (1988). "Stability of Cubes, Tetrapods and Accropode."
-!    Proceedings of the Conference Breakwaters '88, Eastbourne, Thomas Telford.
+!           Storm_Duration_hr = Nz * Tm / 3600
 !
-! 3. Chegini, V., & Aghtouman, P. (2006). "An Investigation on the Stability of 
-!    Rubble Mound Breakwaters with Armour Layers of Antifer Cubes." 
-!    Journal of Marine Engineering.
+!    b. Trunk stability:
+!       For the selected formula, the program evaluates the Stability Number:
 !
-! 4. USACE (2006). "Coastal Engineering Manual (CEM)", Chapter VI-5.
+!           Ns = (k1 * (Nod^k2 / Nz^k3) + k4) * s0m^(-k5)
 !
-! 5. CEN (2002). "EN 13383-1: Armourstone - Part 1: Specification."
+!       where:
 !
-! 5. COMPILATION INSTRUCTIONS:
+!           L0  = g * Tm^2 / (2 * pi)
+!           s0m = Hs / L0
 !
-! Compilation (example using gfortran on Windows/Linux):
+!       The trunk buoyant relative density is:
 !
-! gfortran -O3 -march=native -std=f2008 -Wall -Wextra -pedantic -Wconversion -static
-! -static-libgfortran -static-libgcc -o breakwater_calculator_cli breakwater_calculator_cli.f90
+!           Delta_trunk = (Wc_trunk / Ww) - 1
 !
-! 6. EXECUTION EXAMPLES:
+!       The nominal diameter is then:
 !
-! 1. Interactive Mode (No arguments):
-! ./breakwater_calculator_cli
+!           Dn = Hs / (Delta_trunk * Ns)
 !
-! 2. Command Line Arguments Mode:
-! Format: ./breakwater_calculator_cli [Hs] [Tm] [Duration] [Nod] [Wc] [FormulaID]
+!       and the trunk armor-unit weight is:
 !
-! Example (Hs=10.0, Tm=13.0, Duration=12.0, Nod=1.0, Wc=24.0, FormulaID=1):
-! ./breakwater_calculator_cli 10.0 13.0 12.0 1.0 24.0 1
+!           W_trunk = Wc_trunk * Dn^3
+!
+!       The program also derives an equivalent Hudson stability coefficient
+!       for the trunk.
+!
+!    c. Head design - iso-geometric transfer:
+!       The breakwater head is subjected to stronger three-dimensional flow
+!       effects than the trunk. Instead of increasing block size or flattening
+!       the slope, the program preserves armor geometry and transfers the trunk
+!       design to the head through a fixed Hudson-coefficient ratio:
+!
+!           Kd_trunk / Kd_head = 1.5
+!
+!       With geometry kept fixed, the required head relative density becomes:
+!
+!           Delta_head = Delta_trunk * (1.5)^(1/3)
+!
+!       and the required concrete specific weight at the head is:
+!
+!           Wc_head = Ww * (Delta_head + 1)
+!
+!       Since block volume is kept constant, the head block weight scales only
+!       with concrete specific weight:
+!
+!           W_head = W_trunk * (Wc_head / Wc_trunk)
+!
+!       Practical consequence:
+!       - the same molds can be used at Trunk and Head;
+!       - the same nominal diameter is maintained;
+!       - Head units are heavier because concrete specific weight increases.
+!
+!    d. Underlayer selection:
+!       The theoretical underlayer target is one tenth of the armor-unit weight:
+!
+!           W_target = W_armor / 10
+!
+!       The target mass is compared against the embedded EN 13383 grading
+!       limits. A grading is selected only if the target mass is strictly
+!       contained within the nominal lower and upper limits.
+!
+!       If more than one grading contains the target mass, the program selects
+!       the tightest range, i.e. the grading with the smallest:
+!
+!           NUL - NLL
+!
+!       If no grading strictly contains the target mass, the program falls back
+!       to the first grading in the internal grading database.
+!
+! 4. DEFAULT INPUTS, CONSTANTS, AND CURRENT FORMULA SETS USED IN THE CODE:
+!
+!    a. Default user inputs currently used by the Fortran CLI:
+!       - Hs              = 11.0 m
+!       - Tm              = 11.9 s
+!       - Number_of_Waves = 3000
+!       - Nod             = 0.5
+!       - Wc              = 27.48 kN/m3
+!       - Ww              = 10.05 kN/m3
+!       - Formula_ID      = 1
+!
+!       Default Formula_ID = 1 corresponds to:
+!       Van der Meer (1988a) - Simple Cubes (Slope 2.0:1)
+!
+!    b. Internal constants currently used by the code:
+!       - g              = 9.80665 m/s2
+!       - W_rock_spec    = 26.5 kN/m3
+!       - P_cubes        = 0.40
+!       - P_rock         = 0.25
+!       - KD_RATIO_FIXED = 1.5
+!
+!    c. Formula sets currently embedded in the code:
+!       1. Van der Meer (1988a) - Simple Cubes (Slope 2.0:1)
+!       2. Van Der Meer (1988a) - Simple Cubes (Slope 1.5:1)
+!       3. Chegini-Aghtouman (2006) - Antifer (Slope 2:1)
+!       4. Chegini-Aghtouman (2006) - Antifer (Slope 1.5:1)
+!
+! 5. OUTPUTS PRODUCED:
+!    The generated report contains, for both Trunk and Head:
+!    - stability number;
+!    - nominal diameter;
+!    - unit weight and unit mass;
+!    - equivalent Kd value;
+!    - armor layer thickness;
+!    - packing density;
+!    - geometric dimensions reported by the code;
+!    - adopted underlayer grading and derived rock parameters.
+!
+!    Volume reporting follows the current Fortran code logic:
+!
+!    - for Simple Cubes:
+!
+!          V = Dn^3
+!
+!    - for Antifer blocks:
+!
+!          V = 1.0247 * H^3
+!
+!    The Fortran CLI appends the technical report to output.txt at each
+!    execution.
+!
+! 6. TECHNICAL BIBLIOGRAPHY & REFERENCES:
+!
+!    1. Van der Meer, J.W. (1988). "Rock Slopes and Gravel Beaches Under Wave
+!       Attack." Doctoral Thesis, Delft University of Technology.
+!
+!    2. Van der Meer, J.W. (1988). "Stability of Cubes, Tetrapods and
+!       Accropode." Proceedings of the Conference Breakwaters '88, Eastbourne,
+!       Thomas Telford.
+!
+!    3. Chegini, V., & Aghtouman, P. (2006). "An Investigation on the
+!       Stability of Rubble Mound Breakwaters with Armour Layers of Antifer
+!       Cubes."
+!
+!    4. USACE (2006). "Coastal Engineering Manual (CEM)", Chapter VI-5.
+!
+!    5. CEN (2002). "EN 13383-1: Armourstone - Part 1: Specification."
+!
+! 7. COMPILATION INSTRUCTIONS:
+!
+!    Recommended GNU Fortran build:
+!
+!    gfortran -O3 -march=native -std=f2008 -Wall -Wextra -pedantic
+!    -Wconversion -static -static-libgfortran -static-libgcc
+!    -o breakwater_calculator_cli breakwater_calculator_cli.f90
+!
+!    Meaning of the main compilation flags:
+!    - -O3                  -> high optimization level;
+!    - -march=native        -> optimize for the local CPU;
+!    - -std=f2008           -> compile as Fortran 2008;
+!    - -Wall -Wextra        -> enable common warnings;
+!    - -pedantic            -> request stricter standards checking;
+!    - -Wconversion         -> warn about implicit numeric conversions;
+!    - -static              -> prefer static linking;
+!    - -static-libgfortran  -> statically link Fortran runtime;
+!    - -static-libgcc       -> statically link GCC runtime.
+!
+!    If full static linking fails on the local toolchain, a fallback build is:
+!
+!    gfortran -O3 -march=native -std=f2008 -Wall -Wextra -pedantic
+!    -Wconversion -o breakwater_calculator_cli breakwater_calculator_cli.f90
+!
+! 8. EXECUTION MODES AND EXAMPLES:
+!
+!    a. Interactive mode:
+!       Run the executable with no command-line arguments:
+!
+!           ./breakwater_calculator_cli
+!
+!       The program will:
+!       - display the 4 available formula options;
+!       - ask for the formula selection;
+!       - ask for Hs, Tm, Nz, Nod, and Wc;
+!       - accept ENTER to use each default value;
+!       - calculate results and append output.txt.
+!
+!    b. Command-line argument mode:
+!       Format:
+!
+!           ./breakwater_calculator_cli [Hs] [Tm] [NumberOfWaves] [Nod] [Wc] [FormulaID]
+!
+!       Example using the current code defaults:
+!
+!           ./breakwater_calculator_cli 11.0 11.9 3000 0.5 27.48 1
+!
+!       FormulaID must be one of:
+!       - 1 -> Simple Cubes, slope 2.0:1
+!       - 2 -> Simple Cubes, slope 1.5:1
+!       - 3 -> Antifer, slope 2:1
+!       - 4 -> Antifer, slope 1.5:1
 !
 ! ======================================================================================
 
@@ -155,6 +321,7 @@ PROGRAM BreakwaterCalculator
         REAL(dp) :: s0m
         REAL(dp) :: sm
         REAL(dp) :: Nz
+        REAL(dp) :: Storm_Duration_hr
         REAL(dp) :: delta
         REAL(dp) :: Ns_trunk
     END TYPE Intermediates
@@ -162,7 +329,7 @@ PROGRAM BreakwaterCalculator
     TYPE :: Inputs
         REAL(dp) :: Hs
         REAL(dp) :: Tm
-        REAL(dp) :: Storm_Duration_hr
+        REAL(dp) :: Number_Of_Waves
         REAL(dp) :: Nod
         REAL(dp) :: Wc
         REAL(dp) :: Ww
@@ -183,7 +350,7 @@ PROGRAM BreakwaterCalculator
 
     ! Data containers
     TYPE(FormulaParams) :: formulas(4)
-    TYPE(GradingDef) :: standard_gradings(16)
+    TYPE(GradingDef) :: standard_gradings(17)
     
     ! Local Variables for Main
     TYPE(Inputs) :: user_inputs
@@ -199,18 +366,18 @@ PROGRAM BreakwaterCalculator
     ! ----------------------------------------------------------------------
     ! FORMULA DATABASE
     
-    ! ID 1: Van Der Meer (1988a) - Cubes (Slope 2.0:1)
-    formulas(1)%name = "Van Der Meer (1988a) - Cubes (Slope 2.0:1)"
+    ! ID 1: Van der Meer (1988a) - Simple Cubes (Slope 2.0:1)
+    formulas(1)%name = "Van der Meer (1988a) - Simple Cubes (Slope 2.0:1)"
     formulas(1)%type_name = "Cubes"
     formulas(1)%slope_ratio = 2.0_dp
-    formulas(1)%k1 = 6.7_dp
+    formulas(1)%k1 = 7.374304189198_dp
     formulas(1)%k2 = 0.4_dp
     formulas(1)%k3 = 0.3_dp
-    formulas(1)%k4 = 1.0_dp
+    formulas(1)%k4 = 1.100642416298_dp
     formulas(1)%k5 = 0.1_dp
     
-    ! ID 2: Van Der Meer (1988a) - Cubes (Slope 1.5:1)
-    formulas(2)%name = "Van Der Meer (1988a) - Cubes (Slope 1.5:1)"
+    ! ID 2: Van Der Meer (1988a) - Simple Cubes (Slope 1.5:1)
+    formulas(2)%name = "Van Der Meer (1988a) - Simple Cubes (Slope 1.5:1)"
     formulas(2)%type_name = "Cubes"
     formulas(2)%slope_ratio = 1.5_dp
     formulas(2)%k1 = 6.7_dp
@@ -241,33 +408,34 @@ PROGRAM BreakwaterCalculator
 
     ! ROCK GRADING DATABASE (EN 13383)
     ! Coarse / Light Gradings
-    standard_gradings(1)%name="CP45/125";      standard_gradings(1)%NLL_kg=0.4_dp;    standard_gradings(1)%NUL_kg=1.2_dp
-    standard_gradings(2)%name="CP63/180";      standard_gradings(2)%NLL_kg=1.2_dp;    standard_gradings(2)%NUL_kg=3.8_dp
-    standard_gradings(3)%name="CP90/250";      standard_gradings(3)%NLL_kg=3.1_dp;    standard_gradings(3)%NUL_kg=9.3_dp
-    standard_gradings(4)%name="CP45/180";      standard_gradings(4)%NLL_kg=0.4_dp;    standard_gradings(4)%NUL_kg=1.2_dp
-    standard_gradings(5)%name="CP90/180";      standard_gradings(5)%NLL_kg=2.1_dp;    standard_gradings(5)%NUL_kg=2.8_dp
+    standard_gradings(1)%name="CP32/90";       standard_gradings(1)%NLL_kg=0.868_dp;    standard_gradings(1)%NUL_kg=19.319_dp
+    standard_gradings(2)%name="CP45/125";      standard_gradings(2)%NLL_kg=2.415_dp;    standard_gradings(2)%NUL_kg=51.758_dp
+    standard_gradings(3)%name="CP63/180";      standard_gradings(3)%NLL_kg=6.626_dp;    standard_gradings(3)%NUL_kg=154.548_dp
+    standard_gradings(4)%name="CP90/250";      standard_gradings(4)%NLL_kg=19.319_dp;   standard_gradings(4)%NUL_kg=414.063_dp
+    standard_gradings(5)%name="CP45/180";      standard_gradings(5)%NLL_kg=2.415_dp;    standard_gradings(5)%NUL_kg=154.548_dp
+    standard_gradings(6)%name="CP90/180";      standard_gradings(6)%NLL_kg=19.319_dp;   standard_gradings(6)%NUL_kg=154.548_dp
     ! Light Mass Armourstone (LMA)
-    standard_gradings(6)%name="LMA5-40";       standard_gradings(6)%NLL_kg=5.0_dp;    standard_gradings(6)%NUL_kg=40.0_dp
-    standard_gradings(7)%name="LMA10-60";      standard_gradings(7)%NLL_kg=10.0_dp;   standard_gradings(7)%NUL_kg=60.0_dp
-    standard_gradings(8)%name="LMA15-120";     standard_gradings(8)%NLL_kg=15.0_dp;   standard_gradings(8)%NUL_kg=120.0_dp
-    standard_gradings(9)%name="LMA40-200";     standard_gradings(9)%NLL_kg=40.0_dp;   standard_gradings(9)%NUL_kg=200.0_dp
-    standard_gradings(10)%name="LMA60-300";    standard_gradings(10)%NLL_kg=60.0_dp;  standard_gradings(10)%NUL_kg=300.0_dp
-    standard_gradings(11)%name="LMA15-300";    standard_gradings(11)%NLL_kg=15.0_dp;  standard_gradings(11)%NUL_kg=300.0_dp
+    standard_gradings(7)%name="LMA5-40";       standard_gradings(7)%NLL_kg=5.0_dp;      standard_gradings(7)%NUL_kg=40.0_dp
+    standard_gradings(8)%name="LMA10-60";      standard_gradings(8)%NLL_kg=10.0_dp;     standard_gradings(8)%NUL_kg=60.0_dp
+    standard_gradings(9)%name="LMA15-120";     standard_gradings(9)%NLL_kg=15.0_dp;     standard_gradings(9)%NUL_kg=120.0_dp
+    standard_gradings(10)%name="LMA40-200";    standard_gradings(10)%NLL_kg=40.0_dp;    standard_gradings(10)%NUL_kg=200.0_dp
+    standard_gradings(11)%name="LMA60-300";    standard_gradings(11)%NLL_kg=60.0_dp;    standard_gradings(11)%NUL_kg=300.0_dp
+    standard_gradings(12)%name="LMA15-300";    standard_gradings(12)%NLL_kg=15.0_dp;    standard_gradings(12)%NUL_kg=300.0_dp
     ! Heavy Mass Armourstone (HMA)
-    standard_gradings(12)%name="HMA300-1000";  standard_gradings(12)%NLL_kg=300.0_dp; standard_gradings(12)%NUL_kg=1000.0_dp
-    standard_gradings(13)%name="HMA1000-3000"; standard_gradings(13)%NLL_kg=1000.0_dp;standard_gradings(13)%NUL_kg=3000.0_dp
-    standard_gradings(14)%name="HMA3000-6000"; standard_gradings(14)%NLL_kg=3000.0_dp;standard_gradings(14)%NUL_kg=6000.0_dp
-    standard_gradings(15)%name="HMA6000-10000";standard_gradings(15)%NLL_kg=6000.0_dp;standard_gradings(15)%NUL_kg=10000.0_dp
-    standard_gradings(16)%name="HMA10000-15000";standard_gradings(16)%NLL_kg=10000.0_dp;standard_gradings(16)%NUL_kg=15000.0_dp
+    standard_gradings(13)%name="HMA300-1000";  standard_gradings(13)%NLL_kg=300.0_dp;   standard_gradings(13)%NUL_kg=1000.0_dp
+    standard_gradings(14)%name="HMA1000-3000"; standard_gradings(14)%NLL_kg=1000.0_dp;  standard_gradings(14)%NUL_kg=3000.0_dp
+    standard_gradings(15)%name="HMA3000-6000"; standard_gradings(15)%NLL_kg=3000.0_dp;  standard_gradings(15)%NUL_kg=6000.0_dp
+    standard_gradings(16)%name="HMA6000-10000";standard_gradings(16)%NLL_kg=6000.0_dp;  standard_gradings(16)%NUL_kg=10000.0_dp
+    standard_gradings(17)%name="HMA10000-15000";standard_gradings(17)%NLL_kg=10000.0_dp;standard_gradings(17)%NUL_kg=15000.0_dp
 
     ! ----------------------------------------------------------------------
     ! DEFAULT INPUTS
     ! ----------------------------------------------------------------------
-    user_inputs%Hs = 10.0_dp
-    user_inputs%Tm = 13.0_dp
-    user_inputs%Storm_Duration_hr = 12.0_dp
-    user_inputs%Nod = 1.0_dp
-    user_inputs%Wc = 24.0_dp
+    user_inputs%Hs = 11.0_dp
+    user_inputs%Tm = 11.9_dp
+    user_inputs%Number_Of_Waves = 3000.0_dp
+    user_inputs%Nod = 0.5_dp
+    user_inputs%Wc = 27.48_dp
     user_inputs%Ww = 10.05_dp
     user_inputs%Formula_ID = 1
 
@@ -282,7 +450,7 @@ PROGRAM BreakwaterCalculator
         ! Parse CLI arguments
         CALL GET_COMMAND_ARGUMENT(1, arg_val); READ(arg_val, *) user_inputs%Hs
         CALL GET_COMMAND_ARGUMENT(2, arg_val); READ(arg_val, *) user_inputs%Tm
-        CALL GET_COMMAND_ARGUMENT(3, arg_val); READ(arg_val, *) user_inputs%Storm_Duration_hr
+        CALL GET_COMMAND_ARGUMENT(3, arg_val); READ(arg_val, *) user_inputs%Number_Of_Waves
         CALL GET_COMMAND_ARGUMENT(4, arg_val); READ(arg_val, *) user_inputs%Nod
         CALL GET_COMMAND_ARGUMENT(5, arg_val); READ(arg_val, *) user_inputs%Wc
         CALL GET_COMMAND_ARGUMENT(6, arg_val); READ(arg_val, *) formula_id_arg
@@ -296,8 +464,8 @@ PROGRAM BreakwaterCalculator
         ! Interactive Mode
         PRINT *, ""
         PRINT *, "--- COASTAL PROTECTION BLOCK CALCULATOR (TRUNK & HEAD) ---"
-        PRINT *, "1. Van Der Meer (1988) - Cubes (Slope 2.0:1)"
-        PRINT *, "2. Van Der Meer (1988) - Cubes (Slope 1.5:1)"
+        PRINT *, "1. Van der Meer (1988a) - Simple Cubes (Slope 2.0:1)"
+        PRINT *, "2. Van Der Meer (1988a) - Cubes (Slope 1.5:1)"
         PRINT *, "3. Chegini-Aghtouman (2006) - Antifer (Slope 2:1)"
         PRINT *, "4. Chegini-Aghtouman (2006) - Antifer (Slope 1.5:1)"
         
@@ -318,8 +486,8 @@ PROGRAM BreakwaterCalculator
         
         CALL get_param("Hs (m)", user_inputs%Hs)
         CALL get_param("Tm (s)", user_inputs%Tm)
+        CALL get_param("Number of waves (Nz)", user_inputs%Number_Of_Waves)
         CALL get_param("Nod (Damage)", user_inputs%Nod)
-        CALL get_param("Duration (h)", user_inputs%Storm_Duration_hr)
         CALL get_param("Concrete Weight Trunk (kN/m3)", user_inputs%Wc)
     END IF
 
@@ -410,7 +578,7 @@ CONTAINS
         
         TYPE(FormulaParams) :: coeffs
         
-        REAL(dp) :: L0, k0, s0m, sm, Nz, delta_trunk
+        REAL(dp) :: L0, k0, s0m, sm, Nz, storm_duration_hr, delta_trunk
         REAL(dp) :: term_damage, term_waves, damage_wave_ratio, scaled_term, inv_f
         REAL(dp) :: steepness_factor, Ns_trunk
         REAL(dp) :: Dn, W_trunk, packing_density_trunk, kd_trunk_equiv
@@ -435,7 +603,8 @@ CONTAINS
         s0m = params%Hs / L0
         sm = s0m
         
-        Nz = (params%Storm_Duration_hr * 3600.0_dp) / params%Tm
+        Nz = params%Number_Of_Waves
+        storm_duration_hr = (Nz * params%Tm) / 3600.0_dp
         delta_trunk = (params%Wc / params%Ww) - 1.0_dp
         
         ! 4. Algorithmic Core (Chegini-Aghtouman / Van der Meer) - TRUNK
@@ -448,12 +617,7 @@ CONTAINS
         
         steepness_factor = s0m**(-coeffs%k5)
         
-        ! Updated Condition: 
-        IF (formula_id == 1) THEN
-            Ns_trunk = inv_f * steepness_factor * ((2.0_dp/1.5_dp)**(1.0_dp/3.0_dp))
-        ELSE
-            Ns_trunk = inv_f * steepness_factor
-        END IF
+        Ns_trunk = inv_f * steepness_factor
         
         ! 5. Block Sizing (Armor) - TRUNK
         Dn = params%Hs / (delta_trunk * Ns_trunk)
@@ -501,9 +665,11 @@ CONTAINS
         results_out%intermediate%s0m = s0m
         results_out%intermediate%sm = sm
         results_out%intermediate%Nz = Nz
+        results_out%intermediate%Storm_Duration_hr = storm_duration_hr
         results_out%intermediate%delta = delta_trunk
         results_out%intermediate%Ns_trunk = Ns_trunk
         
+        results_out%final_trunk%Ns = Ns_trunk
         results_out%final_trunk%Dn = Dn
         results_out%final_trunk%W = W_trunk
         results_out%final_trunk%Mass_tonnes = W_trunk / g
@@ -514,6 +680,7 @@ CONTAINS
         results_out%final_trunk%dims%B = b_trunk
         
         results_out%final_head%Ns = Ns_head
+        results_out%final_head%Dn = Dn
         results_out%final_head%Kd = kd_head_derived
         results_out%final_head%Kd_Ratio = kd_ratio
         results_out%final_head%Delta_Required = delta_head
@@ -537,10 +704,19 @@ CONTAINS
         INTEGER :: u, iostatus_val
         CHARACTER(LEN=200) :: line
         CHARACTER(LEN=80) :: separator
+        REAL(dp) :: armor_vol_trunk, armor_vol_head
         
         separator = "--------------------------------------------------------------------------------"
+
+        IF (TRIM(results%coefficients%type_name) == "Antifer") THEN
+            armor_vol_trunk = 1.0247_dp * (results%final_trunk%dims%H**3)
+            armor_vol_head = 1.0247_dp * (results%final_head%dims%H**3)
+        ELSE
+            armor_vol_trunk = results%final_trunk%Dn**3
+            armor_vol_head = results%final_head%Dn**3
+        END IF
         
-        OPEN(NEWUNIT=u, FILE=filepath, STATUS='REPLACE', ACTION='WRITE', IOSTAT=iostatus_val)
+        OPEN(NEWUNIT=u, FILE=filepath, STATUS='UNKNOWN', ACTION='WRITE', POSITION='APPEND', IOSTAT=iostatus_val)
         IF (iostatus_val /= 0) THEN
             PRINT *, "Error saving file."
             RETURN
@@ -555,7 +731,7 @@ CONTAINS
         WRITE(u, '(A)') "1. INPUT PARAMETERS"
         WRITE(u, '(A, F0.2, A)') "   Hs (Sigificant Wave Height)         : ", results%inputs%Hs, " m"
         WRITE(u, '(A, F0.2, A)') "   Tm (Mean Wave Period)               : ", results%inputs%Tm, " s"
-        WRITE(u, '(A, F0.2, A)') "   Storm Duration (h)                  : ", results%inputs%Storm_Duration_hr, " h"
+        WRITE(u, '(A, I0)')      "   Number of waves (Nz)                : ", NINT(results%inputs%Number_Of_Waves)
         WRITE(u, '(A, F0.2)')    "   Nod (Damage)                        : ", results%inputs%Nod
         WRITE(u, '(A, F0.2, A)') "   Wc Trunk (Concrete Spec. Weight)    : ", results%inputs%Wc, " kN/m3"
         WRITE(u, '(A, F0.2, A)') "   Ww (Water Specific Weight)          : ", results%inputs%Ww, " kN/m3"
@@ -567,9 +743,9 @@ CONTAINS
         
         WRITE(u, '(A)') "2. INTERMEDIATE PARAMETERS"
         WRITE(u, '(A, F0.2, A)') "   Wave Length (L0)                    : ", results%intermediate%L0, " m"
-        WRITE(u, '(A, F6.4)')    "   wave number (k0 = 2*pi/L0)          : ", results%intermediate%k0
-        WRITE(u, '(A, F6.4)')    "   wave steepness (s0m = Hs/L0)        : ", results%intermediate%s0m
-        WRITE(u, '(A, I0)')      "   Number of waves (Nz)                : ", INT(results%intermediate%Nz)
+        WRITE(u, '(A, F0.4)')    "   wave number (k0 = 2*pi/L0)          : ", results%intermediate%k0
+        WRITE(u, '(A, F0.4)')    "   wave steepness (s0m = Hs/L0)        : ", results%intermediate%s0m
+        WRITE(u, '(A, F0.3, A)') "   Storm Duration (h)                  : ", results%intermediate%Storm_Duration_hr, " h"
         WRITE(u, '(A, F0.4)')    "   Stability Number TRUNK (Ns)         : ", results%intermediate%Ns_trunk
         WRITE(u, '(A, F0.4)')    "   Stability Number HEAD (Ns)          : ", results%final_head%Ns
         WRITE(u, '(A)') TRIM(separator)
@@ -578,9 +754,14 @@ CONTAINS
         WRITE(u, '(A, F0.2, A)') "   BLOCK WEIGHT (W)                    : ", results%final_trunk%W, " kN"
         WRITE(u, '(A, F0.2, A)') "   Mass (ton)                          : ", results%final_trunk%Mass_tonnes, " t"
         WRITE(u, '(A, F0.3, A)') "   Nominal Diameter (Dn)               : ", results%final_trunk%Dn, " m"
-        WRITE(u, '(A, F0.3, A)') "   Cube Height (H)                     : ", results%final_trunk%dims%H, " m"
-        WRITE(u, '(A, F0.3, A)') "   Cube Top Width (B)                  : ", results%final_trunk%dims%B, " m"
-        WRITE(u, '(A, F0.3, A)') "   Cube Base Width (A)                 : ", results%final_trunk%dims%A, " m"
+        IF (TRIM(results%coefficients%type_name) == "Antifer") THEN
+            WRITE(u, '(A, F0.3, A)') "   Volume = 1.0247 * H^3 (V)           : ", armor_vol_trunk, " m3"
+        ELSE
+            WRITE(u, '(A, F0.3, A)') "   Volume = Dn^3 (V)                   : ", armor_vol_trunk, " m3"
+            WRITE(u, '(A, F0.3, A)') "   Cube Height (H)                     : ", results%final_trunk%dims%H, " m"
+            WRITE(u, '(A, F0.3, A)') "   Cube Top Width (B)                  : ", results%final_trunk%dims%B, " m"
+            WRITE(u, '(A, F0.3, A)') "   Cube Base Width (A)                 : ", results%final_trunk%dims%A, " m"
+        END IF
         WRITE(u, '(A, F0.2)')    "   KD_TRUNK (Equivalent)               : ", results%final_trunk%Kd
         WRITE(u, '(A, F0.2, A)') "   Double Layer Thickness (r1)         : ", results%final_trunk%r1, " m"
         WRITE(u, '(A, F0.2)')    "   Packing Density, d [units/100m2]    : ", results%final_trunk%packing_density
@@ -604,10 +785,15 @@ CONTAINS
         WRITE(u, '(A)') "5. ARMOR LAYER RESULTS - HEAD (High Density)"
         WRITE(u, '(A)') "   *Maintains same Dn and Slope as Trunk*"
         WRITE(u, '(A, F0.2)')    "   Stability Ratio (Kd_T/Kd_H)         : ", results%final_head%Kd_Ratio
-        WRITE(u, '(A, F0.3, A)') "   Nominal Diameter (Dn)               : ", results%final_trunk%Dn, " m"
-        WRITE(u, '(A, F0.3, A)') "   Cube Height (H)                     : ", results%final_head%dims%H, " m"
-        WRITE(u, '(A, F0.3, A)') "   Cube Top width (B)                  : ", results%final_head%dims%B, " m"
-        WRITE(u, '(A, F0.3, A)') "   Cube Base Width (A)                 : ", results%final_head%dims%A, " m"
+        WRITE(u, '(A, F0.3, A)') "   Nominal Diameter (Dn)               : ", results%final_head%Dn, " m"
+        IF (TRIM(results%coefficients%type_name) == "Antifer") THEN
+            WRITE(u, '(A, F0.3, A)') "   Volume = 1.0247 * H^3 (V)           : ", armor_vol_head, " m3"
+        ELSE
+            WRITE(u, '(A, F0.3, A)') "   Volume = Dn^3 (V)                   : ", armor_vol_head, " m3"
+            WRITE(u, '(A, F0.3, A)') "   Cube Height (H)                     : ", results%final_head%dims%H, " m"
+           WRITE(u, '(A, F0.3, A)') "   Cube Top width (B)                  : ", results%final_head%dims%B, " m"
+           WRITE(u, '(A, F0.3, A)') "   Cube Base Width (A)                 : ", results%final_head%dims%A, " m"
+        END IF
         WRITE(u, '(A, F0.2)')    "   KD_HEAD (Equivalent)                : ", results%final_head%Kd
         WRITE(u, '(A, F0.2, A)') "   Required Concrete Density (Wc)      : ", results%final_head%Wc_Required, " kN/m3"
         WRITE(u, '(A, F0.2, A)') "   BLOCK WEIGHT (W)                    : ", results%final_head%W, " kN"

@@ -1,42 +1,157 @@
-import math
-import sys
-import os
-
 # ======================================================================================
 # PROGRAM DESCRIPTION & METHODOLOGY
 # ======================================================================================
 #
 # 1. PURPOSE:
-#    This software calculates the required size and weight of artificial concrete 
-#    armor units (Simple Cubes & Antifer Blocks) for rubble mound breakwaters.
-#    It implements an "Iso-Geometric Design Philosophy" to dimension two sections:
-#    - The Trunk (main longitudinal section).
-#    - The Head (exposed roundhead).
+#    This software performs preliminary hydraulic sizing of rubble-mound breakwater
+#    armor made with artificial concrete units and the associated rock underlayers.
+#    The implemented armor-unit families are:
+#    - Simple Cubes
+#    - Antifer Blocks
+#
+#    The calculator dimensions two structural zones:
+#    - The Trunk (main longitudinal section)
+#    - The Head (roundhead / exposed end section)
+#
+#    The implemented design philosophy is iso-geometric but not iso-weight:
+#    the Head keeps the same nominal unit size and geometry as the Trunk, while
+#    the required concrete specific weight is increased to satisfy the adopted
+#    head-stability transfer rule.
 #
 # 2. METHODOLOGY:
-#    The calculator utilizes empirical power-law formulas derived from hydraulic 
-#    model testing and European standards:
-#    - Antifer Blocks: Chegini & Aghtouman (2006).
-#    - Simple Cubes: Van der Meer (1988).
-#    - Underlayers: Automatic sizing based on EN 13383 Standard Rock Gradings.
+#    The calculator uses empirical hydraulic-stability formulae and an internal
+#    EN 13383 rock-grading database:
 #
-# 3. DESIGN LOGIC & STRATEGY:
-#    a. Trunk Stability: 
-#       Calculates the Stability Number (Ns) based on wave steepness (s0m), storm 
-#       duration (Nz), and damage level (Nod). This determines the nominal 
-#       diameter (Dn) and Weight (W).
+#    - Simple Cubes:
+#      Van der Meer (1988a), with embedded coefficient sets for slopes 2.0:1
+#      and 1.5:1.
 #
-#    b. Head Design (Iso-Geometric Transfer Strategy): 
-#       The breakwater head endures higher turbulence (3D effects) than the trunk.
-#       Rather than increasing block size or softening the slope—which requires 
-#       different molds or crane logistics—this tool solves for the required 
-#       increase in Concrete Density (rho_c).
-#       
-#       - Principle: Maintain constant Geometry (Dn) and Slope (alpha).
-#       - Transfer Function: Delta_head = Delta_trunk * (1.5)^(1/3)
-#       - Result: Head blocks use the same molds but are heavier due to higher density.
+#    - Antifer Blocks:
+#      Chegini-Aghtouman (2006), with embedded coefficient sets for slopes
+#      2.0:1 and 1.5:1.
 #
-# 4. TECHNICAL BIBLIOGRAPHY & REFERENCES:
+#    - Underlayers:
+#      Automatic selection from an internal EN 13383 grading table using a
+#      target underlayer weight equal to one tenth of armor-unit weight.
+#
+# 3. DESIGN LOGIC & COMPUTATIONAL STRATEGY:
+#
+#    a. Input philosophy:
+#       The exposed hydraulic storm input is the number of waves, Nz.
+#       Storm duration is not entered directly; it is calculated internally as:
+#
+#           Storm_Duration_hr = Nz * Tm / 3600
+#
+#    b. Trunk stability calculation:
+#       For the selected formula ID, the program evaluates the stability number:
+#
+#           Ns = (k1 * (Nod^k2 / Nz^k3) + k4) * s0m^(-k5)
+#
+#       where:
+#       - s0m = Hs / L0
+#       - L0  = g * Tm^2 / (2 * pi)
+#
+#       The trunk armor nominal diameter is then obtained from:
+#
+#           Dn = Hs / (Delta_trunk * Ns)
+#
+#       with:
+#
+#           Delta_trunk = (Wc_trunk / Ww) - 1
+#
+#       The trunk armor-unit weight is:
+#
+#           W_trunk = Wc_trunk * Dn^3
+#
+#       The equivalent Hudson stability coefficient for the trunk is also
+#       calculated for reference.
+#
+#    c. Head design strategy:
+#       The Head is not resized by increasing nominal diameter Dn.
+#       Instead, the program keeps the same Dn and the same slope as the Trunk,
+#       and transfers the design to the Head through a fixed Hudson-coefficient
+#       ratio:
+#
+#           Kd_trunk / Kd_head = 1.5
+#
+#       Assuming fixed geometry, the required relative-density transfer becomes:
+#
+#           Delta_head = Delta_trunk * (1.5)^(1/3)
+#
+#       and the required head concrete specific weight is:
+#
+#           Wc_head = Ww * (Delta_head + 1)
+#
+#       Because unit volume is kept constant, head unit weight increases only
+#       due to the higher concrete specific weight:
+#
+#           W_head = W_trunk * (Wc_head / Wc_trunk)
+#
+#       Therefore:
+#       - same molds may be used at Trunk and Head;
+#       - same nominal diameter is preserved;
+#       - same geometric dimensions are preserved;
+#       - Head units are heavier because density is increased.
+#
+#    d. Underlayer selection:
+#       The target underlayer weight is taken as:
+#
+#           W_target = W_armor / 10
+#
+#       This target is converted to mass and matched against the internal
+#       EN 13383 nominal grading limits. The adopted grading is the one that
+#       strictly contains the target mass and, if more than one grading matches,
+#       the tightest grading range is selected. If no grading strictly contains
+#       the target mass, the code falls back to the first grading in the
+#       database.
+#
+# 4. DEFAULTS, CONSTANTS, AND CURRENT CODE SETTINGS:
+#
+#    a. Default design inputs currently used in the code:
+#       - Hs         = 11.0 m
+#       - Tm         = 11.9 s
+#       - Nz         = 3000
+#       - Nod        = 0.5
+#       - Wc_trunk   = 27.48 kN/m3
+#       - Ww         = 10.05 kN/m3
+#       - Formula_ID = 1
+#
+#       Default Formula_ID = 1 corresponds to:
+#       Van der Meer (1988a) - Simple Cubes (Slope 2.0:1)
+#
+#    b. Physical and layer constants currently used in the code:
+#       - g            = 9.80665 m/s2
+#       - W_rock_spec  = 26.5 kN/m3
+#       - P_cubes      = 0.40
+#       - P_rock       = 0.25
+#       - Kd ratio     = 1.5
+#
+#    c. Formula sets currently embedded in the code:
+#       1. Van der Meer (1988a) - Simple Cubes (Slope 2.0:1)
+#       2. Van der Meer (1988a) - Simple Cubes (Slope 1.5:1)
+#       3. Chegini-Aghtouman (2006) - Antifer (Slope 2.0:1)
+#       4. Chegini-Aghtouman (2006) - Antifer (Slope 1.5:1)
+#
+# 5. OUTPUTS PRODUCED:
+#    The calculator reports, for both Trunk and Head:
+#    - Stability number
+#    - Nominal diameter
+#    - Armor-unit weight and mass
+#    - Equivalent Kd value
+#    - Armor-layer thickness
+#    - Packing density
+#    - Underlayer grading and derived rock parameters
+#
+#    For Cubes, displayed volume is reported as:
+#
+#        V = Dn^3
+#
+#    For Antifer units, displayed volume is reported using the geometric
+#    shape factor:
+#
+#        V = 1.0247 * H^3
+#
+# 6. TECHNICAL BIBLIOGRAPHY & REFERENCES:
 #
 #    1. Van der Meer, J.W. (1988). "Rock Slopes and Gravel Beaches Under Wave Attack."
 #       Doctoral Thesis, Delft University of Technology.
@@ -44,15 +159,18 @@ import os
 #    2. Van der Meer, J.W. (1988). "Stability of Cubes, Tetrapods and Accropode."
 #       Proceedings of the Conference Breakwaters '88, Eastbourne, Thomas Telford.
 #
-#    3. Chegini, V., & Aghtouman, P. (2006). "An Investigation on the Stability of 
-#       Rubble Mound Breakwaters with Armour Layers of Antifer Cubes." 
-#       Journal of Marine Engineering.
+#    3. Chegini, V., & Aghtouman, P. (2006). "An Investigation on the Stability of
+#       Rubble Mound Breakwaters with Armour Layers of Antifer Cubes."
 #
 #    4. USACE (2006). "Coastal Engineering Manual (CEM)", Chapter VI-5.
 #
 #    5. CEN (2002). "EN 13383-1: Armourstone - Part 1: Specification."
 #
 # ======================================================================================
+
+import math
+import sys
+import os
 
 class BreakwaterCalculator:
     """
@@ -96,9 +214,9 @@ class BreakwaterCalculator:
         
         self.formulas = {
             1: {
-                "name": "Van Der Meer (1988a) - Cubes (Slope 2.0:1)",
-                "type": "Cubes", "slope_ratio": 2.0, 
-                "k1": 6.7, "k2": 0.4, "k3": 0.3, "k4": 1.0, "k5": 0.1
+                "name": "Van der Meer (1988a) - Simple Cubes (Slope 2.0:1)",
+                "type": "Cubes", "slope_ratio": 2.0,
+                "k1": 7.374304189198, "k2": 0.4, "k3": 0.3, "k4": 1.100642416298, "k5": 0.1
             },
             2: {
                 "name": "Van Der Meer (1988a) - Cubes (Slope 1.5:1)",
@@ -124,11 +242,12 @@ class BreakwaterCalculator:
         # These represent standard commercial availability of rock.
         self.standard_gradings = [
             # Coarse / Light Gradings
-            {"name": "CP45/125",       "NLL_kg": 0.4,    "NUL_kg": 1.2},
-            {"name": "CP63/180",       "NLL_kg": 1.2,    "NUL_kg": 3.8},
-            {"name": "CP90/250",       "NLL_kg": 3.1,    "NUL_kg": 9.3},
-            {"name": "CP45/180",       "NLL_kg": 0.4,    "NUL_kg": 1.2},
-            {"name": "CP90/180",       "NLL_kg": 2.1,    "NUL_kg": 2.8},
+            {"name": "CP32/90",        "NLL_kg": 0.868,  "NUL_kg": 19.319},
+            {"name": "CP45/125",       "NLL_kg": 2.415,  "NUL_kg": 51.758},
+            {"name": "CP63/180",       "NLL_kg": 6.626,  "NUL_kg": 154.548},
+            {"name": "CP90/250",       "NLL_kg": 19.319, "NUL_kg": 414.063},
+            {"name": "CP45/180",       "NLL_kg": 2.415,  "NUL_kg": 154.548},
+            {"name": "CP90/180",       "NLL_kg": 19.319, "NUL_kg": 154.548},
             # Light Mass Armourstone (LMA)
             {"name": "LMA5-40",        "NLL_kg": 5,      "NUL_kg": 40},
             {"name": "LMA10-60",       "NLL_kg": 10,     "NUL_kg": 60},
@@ -148,11 +267,11 @@ class BreakwaterCalculator:
         # DEFAULT INPUTS
         # ----------------------------------------------------------------------
         self.defaults = {
-            "Hs": 10.0,                # Significant Wave Height (m)
-            "Tm": 13.0,                # Mean Wave Period (s)
-            "Storm_Duration_hr": 12.0, # Duration of the design storm
-            "Nod": 1.0,                # Damage Number (Nod=0 to 1 implies no damage/start of damage)
-            "Wc": 24.0,                # Specific weight of concrete (kN/m3)
+            "Hs": 11.0,                # Significant Wave Height (m)
+            "Tm": 11.9,                # Mean Wave Period (s)
+            "Nz": 3000.0,              # Number of waves in the design storm
+            "Nod": 0.5,                # Damage Number (Nod=0 to 1 implies no damage/start of damage)
+            "Wc": 27.48,               # Specific weight of concrete (kN/m3)
             "Ww": 10.05,               # Specific weight of seawater (kN/m3)
             "Formula_ID": 1            # Default is now VdM 2.0 (ID 1)
         }
@@ -240,8 +359,9 @@ class BreakwaterCalculator:
         s0m = params['Hs'] / L0
         sm = s0m 
 
-        # Calculate Number of Waves (Nz) during the storm
-        Nz = (params['Storm_Duration_hr'] * 3600) / params['Tm']
+        # Calculate storm duration from the number of waves
+        Nz = params['Nz']
+        storm_duration_hr = (Nz * params['Tm']) / 3600.0
         
         # Calculate Relative Density Delta = (Rho_concrete / Rho_water) - 1
         delta_trunk = (params['Wc'] / params['Ww']) - 1
@@ -249,7 +369,7 @@ class BreakwaterCalculator:
         # 4. Algorithmic Core (Chegini-Aghtouman / Van der Meer) - TRUNK
         # This calculates the Stability Number (Ns)
         
-        # Term 1: Damage / Waves relationship
+        # Term 1: Damage / number-of-waves relationship
         term_damage = params['Nod'] ** k2
         term_waves = Nz ** k3
         damage_wave_ratio = term_damage / term_waves
@@ -257,17 +377,10 @@ class BreakwaterCalculator:
         # Combine terms based on power-law formula
         scaled_term = k1 * damage_wave_ratio
         inv_f = scaled_term + k4
-        f_stab = 1.0 / inv_f 
-        
+
         # Wave steepness influence
         steepness_factor = s0m ** (-k5)
-        
-        # The logic below adjusts Ns for VdM Slope 2.0 specifically if needed.
-        # This accounts for slight geometric variations in the original VdM 1988 dataset.
-        if formula_id == 1:
-            Ns_trunk = inv_f * steepness_factor * (2.0/1.5)**(1/3)
-        else:
-            Ns_trunk = inv_f * steepness_factor
+        Ns_trunk = inv_f * steepness_factor
 
         # 5. Block Sizing (Armor) - TRUNK
         # Main Stability Equation: Dn = Hs / (Delta * Ns)
@@ -355,7 +468,8 @@ class BreakwaterCalculator:
                 "k0": k0,    # Added to results
                 "s0m": s0m,  # Added to results
                 "sm": sm, 
-                "Nz": Nz, 
+                "Nz": Nz,
+                "Storm_Duration_hr": storm_duration_hr,
                 "delta": delta_trunk, 
                 "Ns_trunk": Ns_trunk 
             },
@@ -374,6 +488,7 @@ class BreakwaterCalculator:
             },
             "underlayer_trunk": ul_trunk,
             "final_head": {
+                "Dn": Dn,
                 "Ns_head": Ns_head, 
                 "Kd_Derived": kd_head_derived,
                 "Kd_Ratio": kd_ratio,
@@ -410,6 +525,9 @@ class BreakwaterCalculator:
         uh = results["underlayer_head"]
         const = results["constants"]
 
+        vol_trunk_display = ft["Dn"] ** 3 if c["type"] == "Cubes" else 1.0247 * (ft["dims"]["H"] ** 3)
+        vol_head_display = fh["Dn"] ** 3 if c["type"] == "Cubes" else 1.0247 * (fh["dims"]["H"] ** 3)
+
         lines = []
         lines.append("================================================================================")
         lines.append("    TECHNICAL REPORT: BREAKWATER ARMOR & UNDERLAYER DESIGN                        ")
@@ -421,7 +539,7 @@ class BreakwaterCalculator:
         lines.append("1. INPUT PARAMETERS")
         lines.append(f"   Hs (Sigificant Wave Height)         : {p['Hs']:.2f} m")
         lines.append(f"   Tm (Mean Wave Period)               : {p['Tm']:.2f} s")
-        lines.append(f"   Storm Duration (h)                  : {p['Storm_Duration_hr']:.2f} h")
+        lines.append(f"   Number of waves (Nz)                : {p['Nz']:.0f}")
         lines.append(f"   Nod (Damage)                        : {p['Nod']:.2f}")
         lines.append(f"   Wc Trunk (Concrete Spec. Weight)    : {p['Wc']:.2f} kN/m3")
         lines.append(f"   Ww (Water Specific Weight)          : {p['Ww']:.2f} kN/m3")
@@ -436,7 +554,7 @@ class BreakwaterCalculator:
         lines.append(f"   Wave Length (L0)                    : {i['L0']:.2f} m")
         lines.append(f"   wave number (k0 = 2*pi/L0)          : {i['k0']:.4f}")
         lines.append(f"   wave steepness (s0m = Hs/L0)        : {i['s0m']:.4f}")
-        lines.append(f"   Number of waves (Nz)                : {i['Nz']:.0f}")
+        lines.append(f"   Calculated Storm Duration (h)       : {i['Storm_Duration_hr']:.3f} h")
         lines.append(f"   Stability Number TRUNK (Ns)         : {i['Ns_trunk']:.4f}")
         lines.append(f"   Stability Number HEAD (Ns)          : {fh['Ns_head']:.4f}")
         lines.append("-" * 80)
@@ -446,9 +564,13 @@ class BreakwaterCalculator:
         lines.append(f"   BLOCK WEIGHT (W)                    : {ft['W']:.2f} kN")
         lines.append(f"   Mass (ton)                          : {ft['Mass_tonnes']:.2f} t")
         lines.append(f"   Nominal Diameter (Dn)               : {ft['Dn']:.3f} m")
-        lines.append(f"   Cube Height (H)                     : {ft['dims']['H']:.3f} m")
-        lines.append(f"   Cube Top Width (B)                  : {ft['dims']['B']:.3f} m")
-        lines.append(f"   Cube Base Width (A)                 : {ft['dims']['A']:.3f} m")
+        if c["type"] == "Cubes":
+            lines.append(f"   Volume = Dn^3 (V)                   : {vol_trunk_display:.3f} m3")
+        else:
+            lines.append(f"   Volume = 1.0247 * H^3 (V)           : {vol_trunk_display:.3f} m3")
+            lines.append(f"   Cube Height (H)                     : {ft['dims']['H']:.3f} m")
+            lines.append(f"   Cube Top Width (B)                  : {ft['dims']['B']:.3f} m")
+            lines.append(f"   Cube Base Width (A)                 : {ft['dims']['A']:.3f} m")
         lines.append(f"   KD_TRUNK (Equivalent)               : {ft['Kd_Equivalent']:.2f}")
         lines.append(f"   Double Layer Thickness (r1)         : {ft['r1']:.2f} m")
         lines.append(f"   Packing Density, d [units/100m2]    : {ft['packing_density']:.2f}")
@@ -472,10 +594,14 @@ class BreakwaterCalculator:
         lines.append("5. ARMOR LAYER RESULTS - HEAD (High Density)")
         lines.append("   *Maintains same Dn and Slope as Trunk*")
         lines.append(f"   Stability Ratio (Kd_T/Kd_H)         : {fh['Kd_Ratio']:.2f}")
-        lines.append(f"   Nominal Diameter (Dn)               : {ft['Dn']:.3f} m")
-        lines.append(f"   Cube Height (H)                     : {fh['dims']['H']:.3f} m")
-        lines.append(f"   Cube Top width (B)                  : {fh['dims']['B']:.3f} m")
-        lines.append(f"   Cube Base Width (A)                 : {fh['dims']['A']:.3f} m")
+        lines.append(f"   Nominal Diameter (Dn)               : {fh['Dn']:.3f} m")
+        if c["type"] == "Cubes":
+            lines.append(f"   Volume = Dn^3 (V)                   : {vol_head_display:.3f} m3")
+        else:
+            lines.append(f"   Volume = 1.0247 * H^3 (V)           : {vol_head_display:.3f} m3")
+            lines.append(f"   Cube Height (H)                     : {fh['dims']['H']:.3f} m")
+            lines.append(f"   Cube Top width (B)                  : {fh['dims']['B']:.3f} m")
+            lines.append(f"   Cube Base Width (A)                 : {fh['dims']['A']:.3f} m")
         lines.append(f"   KD_HEAD (Equivalent)                : {fh['Kd_Derived']:.2f}")
         lines.append(f"   Required Concrete Density (Wc)      : {fh['Wc_Required']:.2f} kN/m3")
         lines.append(f"   BLOCK WEIGHT (W)                    : {fh['W']:.2f} kN")
@@ -515,8 +641,8 @@ def main():
     
     print("\n--- COASTAL PROTECTION BLOCK CALCULATOR (TRUNK & HEAD) ---")
     # REORDERED MENU
-    print("1. Van Der Meer (1988) - Cubes (Slope 2.0:1)")
-    print("2. Van Der Meer (1988) - Cubes (Slope 1.5:1)")
+    print("1. Van der Meer (1988a) - Simple Cubes (Slope 2.0:1)")
+    print("2. Van Der Meer (1988a) - Simple Cubes (Slope 1.5:1)")
     print("3. Chegini-Aghtouman (2006) - Antifer (Slope 2:1)")
     print("4. Chegini-Aghtouman (2006) - Antifer (Slope 1.5:1)")
     
@@ -544,7 +670,7 @@ def main():
             "Hs": get_param("Hs (m)", defaults["Hs"]),
             "Tm": get_param("Tm (s)", defaults["Tm"]),
             "Nod": get_param("Nod (Damage)", defaults["Nod"]),
-            "Storm_Duration_hr": get_param("Duration (h)", defaults["Storm_Duration_hr"]),
+            "Nz": get_param("Number of waves (Nz)", defaults["Nz"]),
             "Wc": get_param("Concrete Weight Trunk (kN/m3)", defaults["Wc"])
         }
     except ValueError:
