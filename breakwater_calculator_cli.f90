@@ -7,13 +7,13 @@
 !    breakwater armor made with artificial concrete units and the associated
 !    rock underlayers.
 !
-!    The armor-unit families currently implemented in the code are:
+!    The currently implemented armor-unit families are:
 !    - Simple Cubes
 !    - Antifer Blocks
 !
 !    The program dimensions two structural zones:
 !    - The Trunk (main longitudinal section)
-!    - The Head (the exposed roundhead / end section)
+!    - The Head (exposed roundhead / end section)
 !
 !    The implemented design philosophy is iso-geometric, but not iso-weight:
 !    - the nominal diameter is kept the same at Trunk and Head;
@@ -32,822 +32,953 @@
 !    - Antifer Blocks: Chegini & Aghtouman (2006)
 !
 !    Underlayers:
-!    - automatic grading selection from an embedded EN 13383 mass-based
-!      grading table.
-!
-! 3. DESIGN LOGIC & COMPUTATIONAL STRATEGY:
-!
-!    a. Exposed storm input:
-!       The storm variable entered by the user is the number of waves, Nz.
-!       Storm duration is not entered directly; it is computed internally as:
-!
-!           Storm_Duration_hr = Nz * Tm / 3600
-!
-!    b. Trunk stability:
-!       For the selected formula, the program evaluates the Stability Number:
-!
-!           Ns = (k1 * (Nod^k2 / Nz^k3) + k4) * s0m^(-k5)
-!
-!       where:
-!
-!           L0  = g * Tm^2 / (2 * pi)
-!           s0m = Hs / L0
-!
-!       The trunk buoyant relative density is:
-!
-!           Delta_trunk = (Wc_trunk / Ww) - 1
-!
-!       The nominal diameter is then:
-!
-!           Dn = Hs / (Delta_trunk * Ns)
-!
-!       and the trunk armor-unit weight is:
-!
-!           W_trunk = Wc_trunk * Dn^3
-!
-!       The program also derives an equivalent Hudson stability coefficient
-!       for the trunk.
-!
-!    c. Head design - iso-geometric transfer:
-!       The breakwater head is subjected to stronger three-dimensional flow
-!       effects than the trunk. Instead of increasing block size or flattening
-!       the slope, the program preserves armor geometry and transfers the trunk
-!       design to the head through a fixed Hudson-coefficient ratio:
-!
-!           Kd_trunk / Kd_head = 1.5
-!
-!       With geometry kept fixed, the required head relative density becomes:
-!
-!           Delta_head = Delta_trunk * (1.5)^(1/3)
-!
-!       and the required concrete specific weight at the head is:
-!
-!           Wc_head = Ww * (Delta_head + 1)
-!
-!       Since block volume is kept constant, the head block weight scales only
-!       with concrete specific weight:
-!
-!           W_head = W_trunk * (Wc_head / Wc_trunk)
-!
-!       Practical consequence:
-!       - the same molds can be used at Trunk and Head;
-!       - the same nominal diameter is maintained;
-!       - Head units are heavier because concrete specific weight increases.
-!
-!    d. Underlayer selection:
-!       The theoretical underlayer target is one tenth of the armor-unit weight:
-!
-!           W_target = W_armor / 10
-!
-!       The target mass is compared against the embedded EN 13383 grading
-!       limits. A grading is selected only if the target mass is strictly
-!       contained within the nominal lower and upper limits.
-!
-!       If more than one grading contains the target mass, the program selects
-!       the tightest range, i.e. the grading with the smallest:
-!
-!           NUL - NLL
-!
-!       If no grading strictly contains the target mass, the program falls back
-!       to the first grading in the internal grading database.
-!
-! 4. DEFAULT INPUTS, CONSTANTS, AND CURRENT FORMULA SETS USED IN THE CODE:
-!
-!    a. Default user inputs currently used by the Fortran CLI:
-!       - Hs              = 11.0 m
-!       - Tm              = 11.9 s
-!       - Number_of_Waves = 3000
-!       - Nod             = 0.5
-!       - Wc              = 27.48 kN/m3
-!       - Ww              = 10.05 kN/m3
-!       - Formula_ID      = 1
-!
-!       Default Formula_ID = 1 corresponds to:
-!       Van der Meer (1988a) - Simple Cubes (Slope 2.0:1)
-!
-!    b. Internal constants currently used by the code:
-!       - g              = 9.80665 m/s2
-!       - W_rock_spec    = 26.5 kN/m3
-!       - P_cubes        = 0.40
-!       - P_rock         = 0.25
-!       - KD_RATIO_FIXED = 1.5
-!
-!    c. Formula sets currently embedded in the code:
-!       1. Van der Meer (1988a) - Simple Cubes (Slope 2.0:1)
-!       2. Van Der Meer (1988a) - Simple Cubes (Slope 1.5:1)
-!       3. Chegini-Aghtouman (2006) - Antifer (Slope 2:1)
-!       4. Chegini-Aghtouman (2006) - Antifer (Slope 1.5:1)
-!
-! 5. OUTPUTS PRODUCED:
-!    The generated report contains, for both Trunk and Head:
-!    - stability number;
-!    - nominal diameter;
-!    - unit weight and unit mass;
-!    - equivalent Kd value;
-!    - armor layer thickness;
-!    - packing density;
-!    - geometric dimensions reported by the code;
-!    - adopted underlayer grading and derived rock parameters.
-!
-!    Volume reporting follows the current Fortran code logic:
-!
-!    - for Simple Cubes:
-!
-!          V = Dn^3
-!
-!    - for Antifer blocks:
-!
-!          V = 1.0247 * H^3
-!
-!    The Fortran CLI appends the technical report to output.txt at each
-!    execution.
-!
-! 6. TECHNICAL BIBLIOGRAPHY & REFERENCES:
-!
-!    1. Van der Meer, J.W. (1988). "Rock Slopes and Gravel Beaches Under Wave
-!       Attack." Doctoral Thesis, Delft University of Technology.
-!
-!    2. Van der Meer, J.W. (1988). "Stability of Cubes, Tetrapods and
-!       Accropode." Proceedings of the Conference Breakwaters '88, Eastbourne,
-!       Thomas Telford.
-!
-!    3. Chegini, V., & Aghtouman, P. (2006). "An Investigation on the
-!       Stability of Rubble Mound Breakwaters with Armour Layers of Antifer
-!       Cubes."
-!
-!    4. USACE (2006). "Coastal Engineering Manual (CEM)", Chapter VI-5.
-!
-!    5. CEN (2002). "EN 13383-1: Armourstone - Part 1: Specification."
-!
-! 7. COMPILATION INSTRUCTIONS:
-!
-!    Recommended GNU Fortran build:
-!
-!    gfortran -O3 -march=native -std=f2008 -Wall -Wextra -pedantic
-!    -Wconversion -static -static-libgfortran -static-libgcc
-!    -o breakwater_calculator_cli breakwater_calculator_cli.f90
-!
-!    Meaning of the main compilation flags:
-!    - -O3                  -> high optimization level;
-!    - -march=native        -> optimize for the local CPU;
-!    - -std=f2008           -> compile as Fortran 2008;
-!    - -Wall -Wextra        -> enable common warnings;
-!    - -pedantic            -> request stricter standards checking;
-!    - -Wconversion         -> warn about implicit numeric conversions;
-!    - -static              -> prefer static linking;
-!    - -static-libgfortran  -> statically link Fortran runtime;
-!    - -static-libgcc       -> statically link GCC runtime.
-!
-!    If full static linking fails on the local toolchain, a fallback build is:
-!
-!    gfortran -O3 -march=native -std=f2008 -Wall -Wextra -pedantic
-!    -Wconversion -o breakwater_calculator_cli breakwater_calculator_cli.f90
-!
-! 8. EXECUTION MODES AND EXAMPLES:
-!
-!    a. Interactive mode:
-!       Run the executable with no command-line arguments:
-!
-!           ./breakwater_calculator_cli
-!
-!       The program will:
-!       - display the 4 available formula options;
-!       - ask for the formula selection;
-!       - ask for Hs, Tm, Nz, Nod, and Wc;
-!       - accept ENTER to use each default value;
-!       - calculate results and append output.txt.
-!
-!    b. Command-line argument mode:
-!       Format:
-!
-!           ./breakwater_calculator_cli [Hs] [Tm] [NumberOfWaves] [Nod] [Wc] [FormulaID]
-!
-!       Example using the current code defaults:
-!
-!           ./breakwater_calculator_cli 11.0 11.9 3000 0.5 27.48 1
-!
-!       FormulaID must be one of:
-!       - 1 -> Simple Cubes, slope 2.0:1
-!       - 2 -> Simple Cubes, slope 1.5:1
-!       - 3 -> Antifer, slope 2:1
-!       - 4 -> Antifer, slope 1.5:1
+!    - standard EN 13383 grading selection from an embedded mass-based
+!      grading table, with optional custom interpolated grading by family
+!      (AUTO / HMA / LMA / CP) for the rock underlayers only.
 !
 ! ======================================================================================
 
-PROGRAM BreakwaterCalculator
-    IMPLICIT NONE
+program BreakwaterCalculator
+    implicit none
 
-    ! ----------------------------------------------------------------------
-    ! DATA STRUCTURES
-    ! ----------------------------------------------------------------------
+    integer, parameter :: dp = selected_real_kind(15, 307)
+    real(dp), parameter :: PI = 3.14159265358979323846_dp
+    real(dp), parameter :: g = 9.80665_dp
+    real(dp), parameter :: W_rock_spec_val = 26.5_dp
+    real(dp), parameter :: P_cubes = 0.40_dp
+    real(dp), parameter :: P_rock = 0.25_dp
+    real(dp), parameter :: KD_RATIO_FIXED = 1.5_dp
 
-    ! Define M_PI if not already defined
-    INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND(15, 307)
-    REAL(dp), PARAMETER :: PI = 3.14159265358979323846_dp
+    type :: FormulaParams
+        character(len=100) :: name = ""
+        character(len=64)  :: type_name = ""
+        real(dp) :: slope_ratio = 0.0_dp
+        real(dp) :: k1 = 0.0_dp
+        real(dp) :: k2 = 0.0_dp
+        real(dp) :: k3 = 0.0_dp
+        real(dp) :: k4 = 0.0_dp
+        real(dp) :: k5 = 0.0_dp
+    end type FormulaParams
 
-    ! ----------------------------------------------------------------------
-    ! PHYSICAL CONSTANTS
-    ! ----------------------------------------------------------------------
-    REAL(dp), PARAMETER :: g = 9.80665_dp  ! Acceleration due to gravity (m/s^2)
-    REAL(dp), PARAMETER :: W_rock_spec_val = 26.5_dp ! Standard Specific weight for underlayer rock (kN/m3)
+    type :: GradingDef
+        character(len=64) :: name = ""
+        real(dp) :: NLL_kg = 0.0_dp
+        real(dp) :: NUL_kg = 0.0_dp
+    end type GradingDef
 
-    ! ----------------------------------------------------------------------
-    ! LAYER CHARACTERISTICS
-    ! ----------------------------------------------------------------------
-    REAL(dp), PARAMETER :: P_cubes = 0.40_dp ! Porosity of armor layers (Standard for double-layer Cubes)
-    REAL(dp), PARAMETER :: P_rock = 0.25_dp  ! Porosity of rock underlayers (Standard approximation)
+    type :: Dimensions
+        real(dp) :: H = 0.0_dp
+        real(dp) :: A = 0.0_dp
+        real(dp) :: B = 0.0_dp
+    end type Dimensions
 
-    ! ----------------------------------------------------------------------
-    ! HEAD TO TRUNK TRANSFER RATIO
-    ! ----------------------------------------------------------------------
-    REAL(dp), PARAMETER :: KD_RATIO_FIXED = 1.5_dp
+    type :: UnderlayerResult
+        character(len=64) :: grading_name = ""
+        real(dp) :: target_W = 0.0_dp
+        real(dp) :: target_M50_kg = 0.0_dp
+        real(dp) :: M50_kg = 0.0_dp
+        real(dp) :: ELL_kg = 0.0_dp
+        real(dp) :: EUL_kg = 0.0_dp
+        real(dp) :: NLL_kg = 0.0_dp
+        real(dp) :: NUL_kg = 0.0_dp
+        real(dp) :: W_mean_kn = 0.0_dp
+        real(dp) :: Dn_rock = 0.0_dp
+        real(dp) :: r2 = 0.0_dp
+        real(dp) :: f2 = 0.0_dp
+        real(dp) :: W_rock_spec = 0.0_dp
+        logical  :: used_custom_interpolation = .false.
+        character(len=16) :: custom_family = ""
+        real(dp) :: custom_ratio_nul_nll = 0.0_dp
+        character(len=128) :: custom_ratio_note = ""
+    end type UnderlayerResult
 
-    ! Struct definitions mirroring C++
-    
-    TYPE :: FormulaParams
-        CHARACTER(LEN=100) :: name
-        CHARACTER(LEN=64) :: type_name
-        REAL(dp) :: slope_ratio
-        REAL(dp) :: k1, k2, k3, k4, k5
-    END TYPE FormulaParams
+    type :: ArmorResult
+        real(dp) :: Ns = 0.0_dp
+        real(dp) :: Dn = 0.0_dp
+        real(dp) :: W = 0.0_dp
+        real(dp) :: Mass_tonnes = 0.0_dp
+        real(dp) :: Kd = 0.0_dp
+        real(dp) :: r1 = 0.0_dp
+        real(dp) :: packing_density = 0.0_dp
+        type(Dimensions) :: dims
+        real(dp) :: Kd_Ratio = 0.0_dp
+        real(dp) :: Delta_Required = 0.0_dp
+        real(dp) :: Wc_Required = 0.0_dp
+    end type ArmorResult
 
-    TYPE :: GradingDef
-        CHARACTER(LEN=64) :: name
-        REAL(dp) :: NLL_kg
-        REAL(dp) :: NUL_kg
-    END TYPE GradingDef
+    type :: Intermediates
+        real(dp) :: L0 = 0.0_dp
+        real(dp) :: k0 = 0.0_dp
+        real(dp) :: s0m = 0.0_dp
+        real(dp) :: sm = 0.0_dp
+        real(dp) :: Nz = 0.0_dp
+        real(dp) :: Storm_Duration_hr = 0.0_dp
+        real(dp) :: delta = 0.0_dp
+        real(dp) :: Ns_trunk = 0.0_dp
+    end type Intermediates
 
-    TYPE :: Dimensions
-        REAL(dp) :: H
-        REAL(dp) :: A
-        REAL(dp) :: B
-    END TYPE Dimensions
+    type :: Inputs
+        real(dp) :: Hs = 0.0_dp
+        real(dp) :: Tm = 0.0_dp
+        real(dp) :: Number_of_Waves = 0.0_dp
+        real(dp) :: Nod = 0.0_dp
+        real(dp) :: Wc = 0.0_dp
+        real(dp) :: Ww = 0.0_dp
+        integer  :: Formula_ID = 1
+        logical  :: use_en13383 = .true.
+        character(len=16) :: custom_family = "AUTO"
+    end type Inputs
 
-    TYPE :: UnderlayerResult
-        CHARACTER(LEN=64) :: grading_name
-        REAL(dp) :: target_W
-        REAL(dp) :: target_M50_kg
-        REAL(dp) :: M50_kg
-        REAL(dp) :: ELL_kg
-        REAL(dp) :: EUL_kg
-        REAL(dp) :: NLL_kg
-        REAL(dp) :: NUL_kg
-        REAL(dp) :: W_mean_kn
-        REAL(dp) :: Dn_rock
-        REAL(dp) :: r2
-        REAL(dp) :: f2
-        REAL(dp) :: W_rock_spec
-    END TYPE UnderlayerResult
+    type :: FullResults
+        type(Inputs) :: inputs
+        type(FormulaParams) :: coefficients
+        type(Intermediates) :: intermediate
+        type(ArmorResult) :: final_trunk
+        type(UnderlayerResult) :: underlayer_trunk
+        type(ArmorResult) :: final_head
+        type(UnderlayerResult) :: underlayer_head
+        real(dp) :: P_rock_val = 0.0_dp
+        real(dp) :: P_cubes_val = 0.0_dp
+    end type FullResults
 
-    TYPE :: ArmorResult
-        REAL(dp) :: Ns
-        REAL(dp) :: Dn
-        REAL(dp) :: W
-        REAL(dp) :: Mass_tonnes
-        REAL(dp) :: Kd
-        REAL(dp) :: r1
-        REAL(dp) :: packing_density
-        TYPE(Dimensions) :: dims
-        
-        ! Specific to Head
-        REAL(dp) :: Kd_Ratio
-        REAL(dp) :: Delta_Required
-        REAL(dp) :: Wc_Required
-    END TYPE ArmorResult
+    type(FormulaParams) :: formulas(4)
+    type(GradingDef)    :: standard_gradings(17)
+    type(Inputs)        :: defaults, user_inputs
+    type(FullResults)   :: results
+    integer :: num_args, formula_id
+    character(len=256) :: arg
 
-    TYPE :: Intermediates
-        REAL(dp) :: L0
-        REAL(dp) :: k0
-        REAL(dp) :: s0m
-        REAL(dp) :: sm
-        REAL(dp) :: Nz
-        REAL(dp) :: Storm_Duration_hr
-        REAL(dp) :: delta
-        REAL(dp) :: Ns_trunk
-    END TYPE Intermediates
+    call init_data(formulas, standard_gradings, defaults)
+    user_inputs = defaults
+    formula_id = defaults%Formula_ID
 
-    TYPE :: Inputs
-        REAL(dp) :: Hs
-        REAL(dp) :: Tm
-        REAL(dp) :: Number_Of_Waves
-        REAL(dp) :: Nod
-        REAL(dp) :: Wc
-        REAL(dp) :: Ww
-        INTEGER :: Formula_ID
-    END TYPE Inputs
+    num_args = command_argument_count()
 
-    TYPE :: FullResults
-        TYPE(Inputs) :: inputs
-        TYPE(FormulaParams) :: coefficients
-        TYPE(Intermediates) :: intermediate
-        TYPE(ArmorResult) :: final_trunk
-        TYPE(UnderlayerResult) :: underlayer_trunk
-        TYPE(ArmorResult) :: final_head
-        TYPE(UnderlayerResult) :: underlayer_head
-        REAL(dp) :: P_rock_val
-        REAL(dp) :: P_cubes_val
-    END TYPE FullResults
+    if (num_args >= 6) then
+        if (.not. read_real_arg(1, user_inputs%Hs)) call cli_parse_fail()
+        if (.not. read_real_arg(2, user_inputs%Tm)) call cli_parse_fail()
+        if (.not. read_real_arg(3, user_inputs%Number_of_Waves)) call cli_parse_fail()
+        if (.not. read_real_arg(4, user_inputs%Nod)) call cli_parse_fail()
+        if (.not. read_real_arg(5, user_inputs%Wc)) call cli_parse_fail()
+        if (.not. read_int_arg(6, formula_id)) call cli_parse_fail()
 
-    ! Data containers
-    TYPE(FormulaParams) :: formulas(4)
-    TYPE(GradingDef) :: standard_gradings(17)
-    
-    ! Local Variables for Main
-    TYPE(Inputs) :: user_inputs
-    TYPE(FullResults) :: results
-    INTEGER :: formula_id_arg
-    INTEGER :: num_args
-    CHARACTER(LEN=100) :: arg_val
-    CHARACTER(LEN=100) :: buffer
-    INTEGER :: iostat
+        if (formula_id < 1 .or. formula_id > 4) then
+            write(*,'(A)') 'Error: Formula ID must be 1-4. Using default (1).'
+            formula_id = 1
+        end if
+        user_inputs%Formula_ID = formula_id
 
-    ! ----------------------------------------------------------------------
-    ! DATA INITIALIZATION (Runtime Assignment)
-    ! ----------------------------------------------------------------------
-    ! FORMULA DATABASE
-    
-    ! ID 1: Van der Meer (1988a) - Simple Cubes (Slope 2.0:1)
-    formulas(1)%name = "Van der Meer (1988a) - Simple Cubes (Slope 2.0:1)"
-    formulas(1)%type_name = "Cubes"
-    formulas(1)%slope_ratio = 2.0_dp
-    formulas(1)%k1 = 7.374304189198_dp
-    formulas(1)%k2 = 0.4_dp
-    formulas(1)%k3 = 0.3_dp
-    formulas(1)%k4 = 1.100642416298_dp
-    formulas(1)%k5 = 0.1_dp
-    
-    ! ID 2: Van Der Meer (1988a) - Simple Cubes (Slope 1.5:1)
-    formulas(2)%name = "Van Der Meer (1988a) - Simple Cubes (Slope 1.5:1)"
-    formulas(2)%type_name = "Cubes"
-    formulas(2)%slope_ratio = 1.5_dp
-    formulas(2)%k1 = 6.7_dp
-    formulas(2)%k2 = 0.4_dp
-    formulas(2)%k3 = 0.3_dp
-    formulas(2)%k4 = 1.0_dp
-    formulas(2)%k5 = 0.1_dp
+        if (num_args >= 7) then
+            call get_command_argument(7, arg)
+            user_inputs%use_en13383 = parse_bool(trim(arg), defaults%use_en13383)
+        end if
+        if (num_args >= 8) then
+            call get_command_argument(8, arg)
+            user_inputs%custom_family = normalize_family(trim(arg))
+        end if
+    else
+        call run_interactive(defaults, user_inputs, formula_id)
+    end if
 
-    ! ID 3: Chegini-Aghtouman (2006) - Antifer (Slope 2:1)
-    formulas(3)%name = "Chegini-Aghtouman (2006) - Antifer (Slope 2:1)"
-    formulas(3)%type_name = "Antifer"
-    formulas(3)%slope_ratio = 2.0_dp
-    formulas(3)%k1 = 6.138_dp
-    formulas(3)%k2 = 0.443_dp
-    formulas(3)%k3 = 0.276_dp
-    formulas(3)%k4 = 1.164_dp
-    formulas(3)%k5 = 0.07_dp
-    
-    ! ID 4: Chegini-Aghtouman (2006) - Antifer (Slope 1.5:1)
-    formulas(4)%name = "Chegini-Aghtouman (2006) - Antifer (Slope 1.5:1)"
-    formulas(4)%type_name = "Antifer"
-    formulas(4)%slope_ratio = 1.5_dp
-    formulas(4)%k1 = 6.951_dp
-    formulas(4)%k2 = 0.443_dp
-    formulas(4)%k3 = 0.291_dp
-    formulas(4)%k4 = 1.082_dp
-    formulas(4)%k5 = 0.082_dp
+    call solve(formulas, standard_gradings, formula_id, user_inputs, results)
+    call generate_report_file(results, 'output.txt')
 
-    ! ROCK GRADING DATABASE (EN 13383)
-    ! Coarse / Light Gradings
-    standard_gradings(1)%name="CP32/90";       standard_gradings(1)%NLL_kg=0.868_dp;    standard_gradings(1)%NUL_kg=19.319_dp
-    standard_gradings(2)%name="CP45/125";      standard_gradings(2)%NLL_kg=2.415_dp;    standard_gradings(2)%NUL_kg=51.758_dp
-    standard_gradings(3)%name="CP63/180";      standard_gradings(3)%NLL_kg=6.626_dp;    standard_gradings(3)%NUL_kg=154.548_dp
-    standard_gradings(4)%name="CP90/250";      standard_gradings(4)%NLL_kg=19.319_dp;   standard_gradings(4)%NUL_kg=414.063_dp
-    standard_gradings(5)%name="CP45/180";      standard_gradings(5)%NLL_kg=2.415_dp;    standard_gradings(5)%NUL_kg=154.548_dp
-    standard_gradings(6)%name="CP90/180";      standard_gradings(6)%NLL_kg=19.319_dp;   standard_gradings(6)%NUL_kg=154.548_dp
-    ! Light Mass Armourstone (LMA)
-    standard_gradings(7)%name="LMA5-40";       standard_gradings(7)%NLL_kg=5.0_dp;      standard_gradings(7)%NUL_kg=40.0_dp
-    standard_gradings(8)%name="LMA10-60";      standard_gradings(8)%NLL_kg=10.0_dp;     standard_gradings(8)%NUL_kg=60.0_dp
-    standard_gradings(9)%name="LMA15-120";     standard_gradings(9)%NLL_kg=15.0_dp;     standard_gradings(9)%NUL_kg=120.0_dp
-    standard_gradings(10)%name="LMA40-200";    standard_gradings(10)%NLL_kg=40.0_dp;    standard_gradings(10)%NUL_kg=200.0_dp
-    standard_gradings(11)%name="LMA60-300";    standard_gradings(11)%NLL_kg=60.0_dp;    standard_gradings(11)%NUL_kg=300.0_dp
-    standard_gradings(12)%name="LMA15-300";    standard_gradings(12)%NLL_kg=15.0_dp;    standard_gradings(12)%NUL_kg=300.0_dp
-    ! Heavy Mass Armourstone (HMA)
-    standard_gradings(13)%name="HMA300-1000";  standard_gradings(13)%NLL_kg=300.0_dp;   standard_gradings(13)%NUL_kg=1000.0_dp
-    standard_gradings(14)%name="HMA1000-3000"; standard_gradings(14)%NLL_kg=1000.0_dp;  standard_gradings(14)%NUL_kg=3000.0_dp
-    standard_gradings(15)%name="HMA3000-6000"; standard_gradings(15)%NLL_kg=3000.0_dp;  standard_gradings(15)%NUL_kg=6000.0_dp
-    standard_gradings(16)%name="HMA6000-10000";standard_gradings(16)%NLL_kg=6000.0_dp;  standard_gradings(16)%NUL_kg=10000.0_dp
-    standard_gradings(17)%name="HMA10000-15000";standard_gradings(17)%NLL_kg=10000.0_dp;standard_gradings(17)%NUL_kg=15000.0_dp
+contains
 
-    ! ----------------------------------------------------------------------
-    ! DEFAULT INPUTS
-    ! ----------------------------------------------------------------------
-    user_inputs%Hs = 11.0_dp
-    user_inputs%Tm = 11.9_dp
-    user_inputs%Number_Of_Waves = 3000.0_dp
-    user_inputs%Nod = 0.5_dp
-    user_inputs%Wc = 27.48_dp
-    user_inputs%Ww = 10.05_dp
-    user_inputs%Formula_ID = 1
+    subroutine init_data(formulas, gradings, defaults)
+        type(FormulaParams), intent(out) :: formulas(4)
+        type(GradingDef), intent(out)    :: gradings(17)
+        type(Inputs), intent(out)        :: defaults
 
-    ! ==============================================================================
-    ! MAIN EXECUTION BLOCK
-    ! ==============================================================================
-    
-    num_args = COMMAND_ARGUMENT_COUNT()
+        formulas(1)%name = 'Van der Meer (1988a) - Simple Cubes (Slope 2.0:1)'
+        formulas(1)%type_name = 'Cubes'
+        formulas(1)%slope_ratio = 2.0_dp
+        formulas(1)%k1 = 7.374304189198_dp
+        formulas(1)%k2 = 0.4_dp
+        formulas(1)%k3 = 0.3_dp
+        formulas(1)%k4 = 1.100642416298_dp
+        formulas(1)%k5 = 0.1_dp
 
-    ! Check if command line arguments are provided
-    IF (num_args >= 6) THEN
-        ! Parse CLI arguments
-        CALL GET_COMMAND_ARGUMENT(1, arg_val); READ(arg_val, *) user_inputs%Hs
-        CALL GET_COMMAND_ARGUMENT(2, arg_val); READ(arg_val, *) user_inputs%Tm
-        CALL GET_COMMAND_ARGUMENT(3, arg_val); READ(arg_val, *) user_inputs%Number_Of_Waves
-        CALL GET_COMMAND_ARGUMENT(4, arg_val); READ(arg_val, *) user_inputs%Nod
-        CALL GET_COMMAND_ARGUMENT(5, arg_val); READ(arg_val, *) user_inputs%Wc
-        CALL GET_COMMAND_ARGUMENT(6, arg_val); READ(arg_val, *) formula_id_arg
-        
-        IF (formula_id_arg < 1 .OR. formula_id_arg > 4) THEN
-             PRINT *, "Error: Formula ID must be 1-4. Using default (1)."
-             formula_id_arg = 1
-        END IF
-        user_inputs%Formula_ID = formula_id_arg
-    ELSE
-        ! Interactive Mode
-        PRINT *, ""
-        PRINT *, "--- COASTAL PROTECTION BLOCK CALCULATOR (TRUNK & HEAD) ---"
-        PRINT *, "1. Van der Meer (1988a) - Simple Cubes (Slope 2.0:1)"
-        PRINT *, "2. Van Der Meer (1988a) - Cubes (Slope 1.5:1)"
-        PRINT *, "3. Chegini-Aghtouman (2006) - Antifer (Slope 2:1)"
-        PRINT *, "4. Chegini-Aghtouman (2006) - Antifer (Slope 1.5:1)"
-        
-        PRINT *, ""
-        WRITE(*, '(A)', ADVANCE='NO') "Option [1-4]: "
-        READ(*, '(A)') buffer
-        
-        IF (LEN_TRIM(buffer) > 0) THEN
-            READ(buffer, *, IOSTAT=iostat) formula_id_arg
-            IF (iostat /= 0 .OR. formula_id_arg < 1 .OR. formula_id_arg > 4) formula_id_arg = 1
-        ELSE
-            formula_id_arg = 1
-        END IF
-        user_inputs%Formula_ID = formula_id_arg
+        formulas(2)%name = 'Van der Meer (1988a) - Simple Cubes (Slope 1.5:1)'
+        formulas(2)%type_name = 'Cubes'
+        formulas(2)%slope_ratio = 1.5_dp
+        formulas(2)%k1 = 6.7_dp
+        formulas(2)%k2 = 0.4_dp
+        formulas(2)%k3 = 0.3_dp
+        formulas(2)%k4 = 1.0_dp
+        formulas(2)%k5 = 0.1_dp
 
-        PRINT *, ""
-        PRINT *, "--- Enter Parameters (Press ENTER for Default) ---"
-        
-        CALL get_param("Hs (m)", user_inputs%Hs)
-        CALL get_param("Tm (s)", user_inputs%Tm)
-        CALL get_param("Number of waves (Nz)", user_inputs%Number_Of_Waves)
-        CALL get_param("Nod (Damage)", user_inputs%Nod)
-        CALL get_param("Concrete Weight Trunk (kN/m3)", user_inputs%Wc)
-    END IF
+        formulas(3)%name = 'Chegini-Aghtouman (2006) - Antifer (Slope 2.0:1)'
+        formulas(3)%type_name = 'Antifer'
+        formulas(3)%slope_ratio = 2.0_dp
+        formulas(3)%k1 = 6.138_dp
+        formulas(3)%k2 = 0.443_dp
+        formulas(3)%k3 = 0.276_dp
+        formulas(3)%k4 = 1.164_dp
+        formulas(3)%k5 = 0.07_dp
 
-    CALL solve(user_inputs%Formula_ID, user_inputs, results)
-    CALL generate_report_file(results, "output.txt")
+        formulas(4)%name = 'Chegini-Aghtouman (2006) - Antifer (Slope 1.5:1)'
+        formulas(4)%type_name = 'Antifer'
+        formulas(4)%slope_ratio = 1.5_dp
+        formulas(4)%k1 = 6.951_dp
+        formulas(4)%k2 = 0.443_dp
+        formulas(4)%k3 = 0.291_dp
+        formulas(4)%k4 = 1.082_dp
+        formulas(4)%k5 = 0.082_dp
 
-CONTAINS
+        gradings(1)  = GradingDef('CP32/90',          0.868_dp,   19.319_dp)
+        gradings(2)  = GradingDef('CP45/125',         2.415_dp,   51.758_dp)
+        gradings(3)  = GradingDef('CP63/180',         6.626_dp,  154.548_dp)
+        gradings(4)  = GradingDef('CP90/250',        19.319_dp,  414.063_dp)
+        gradings(5)  = GradingDef('CP45/180',         2.415_dp,  154.548_dp)
+        gradings(6)  = GradingDef('CP90/180',        19.319_dp,  154.548_dp)
+        gradings(7)  = GradingDef('LMA5-40',          5.0_dp,     40.0_dp)
+        gradings(8)  = GradingDef('LMA10-60',        10.0_dp,     60.0_dp)
+        gradings(9)  = GradingDef('LMA15-120',       15.0_dp,    120.0_dp)
+        gradings(10) = GradingDef('LMA40-200',       40.0_dp,    200.0_dp)
+        gradings(11) = GradingDef('LMA60-300',       60.0_dp,    300.0_dp)
+        gradings(12) = GradingDef('LMA15-300',       15.0_dp,    300.0_dp)
+        gradings(13) = GradingDef('HMA300-1000',    300.0_dp,   1000.0_dp)
+        gradings(14) = GradingDef('HMA1000-3000',  1000.0_dp,   3000.0_dp)
+        gradings(15) = GradingDef('HMA3000-6000',  3000.0_dp,   6000.0_dp)
+        gradings(16) = GradingDef('HMA6000-10000', 6000.0_dp,  10000.0_dp)
+        gradings(17) = GradingDef('HMA10000-15000',10000.0_dp, 15000.0_dp)
 
-    FUNCTION calculate_L0(Tm) RESULT(L0)
-        REAL(dp), INTENT(IN) :: Tm
-        REAL(dp) :: L0
-        L0 = (g * Tm**2) / (2.0_dp * PI)
-    END FUNCTION calculate_L0
+        defaults%Hs = 11.0_dp
+        defaults%Tm = 11.9_dp
+        defaults%Number_of_Waves = 3000.0_dp
+        defaults%Nod = 0.5_dp
+        defaults%Wc = 27.48_dp
+        defaults%Ww = 10.05_dp
+        defaults%Formula_ID = 1
+        defaults%use_en13383 = .true.
+        defaults%custom_family = 'AUTO'
+    end subroutine init_data
 
-    FUNCTION calculate_underlayer_params(W_armor) RESULT(res)
-        REAL(dp), INTENT(IN) :: W_armor
-        TYPE(UnderlayerResult) :: res
-        
-        REAL(dp) :: target_weight
-        REAL(dp) :: target_mass_kg
-        REAL(dp) :: min_range_width, current_range
-        REAL(dp) :: final_M50, final_NLL, final_NUL
-        REAL(dp) :: ELL, EUL, W_mean_kn
-        INTEGER :: i
-        CHARACTER(LEN=64) :: best_name
-        LOGICAL :: found
+    logical function read_real_arg(idx, val)
+        integer, intent(in) :: idx
+        real(dp), intent(out) :: val
+        character(len=256) :: s
+        integer :: ios_local
+        call get_command_argument(idx, s)
+        read(s, *, iostat=ios_local) val
+        read_real_arg = (ios_local == 0)
+    end function read_real_arg
+
+    logical function read_int_arg(idx, val)
+        integer, intent(in) :: idx
+        integer, intent(out) :: val
+        character(len=256) :: s
+        integer :: ios_local
+        call get_command_argument(idx, s)
+        read(s, *, iostat=ios_local) val
+        read_int_arg = (ios_local == 0)
+    end function read_int_arg
+
+    subroutine cli_parse_fail()
+        write(*,'(A)') 'Error parsing command line arguments.'
+        write(*,'(A)') 'Usage: ./breakwater_calculator_cli [Hs] [Tm] [NumberOfWaves] [Nod] [Wc] [FormulaID] '// &
+            '[UseEN13383] [CustomFamily]'
+        stop 1
+    end subroutine cli_parse_fail
+
+    subroutine run_interactive(defaults, user_inputs, formula_id)
+        type(Inputs), intent(in) :: defaults
+        type(Inputs), intent(inout) :: user_inputs
+        integer, intent(out) :: formula_id
+        character(len=256) :: selection, s
+
+        write(*,'(A)') ''
+        write(*,'(A)') '--- COASTAL PROTECTION BLOCK CALCULATOR (TRUNK & HEAD) ---'
+        write(*,'(A)') '1. Simple Cubes (Slope 2.0:1) - Van der Meer'
+        write(*,'(A)') '2. Simple Cubes (Slope 1.5:1) - Van der Meer'
+        write(*,'(A)') '3. Antifer (Slope 2.0:1) - Chegini'
+        write(*,'(A)') '4. Antifer (Slope 1.5:1) - Chegini'
+        write(*,'(A)') ''
+        write(*,'(A)', advance='no') 'Option [1-4]: '
+        read(*,'(A)') selection
+        selection = trim(adjustl(selection))
+        select case (selection)
+            case ('1','2','3','4')
+                read(selection,*) formula_id
+            case default
+                formula_id = 1
+        end select
+        user_inputs%Formula_ID = formula_id
+
+        write(*,'(A)') ''
+        write(*,'(A)') '--- Enter Parameters (Press ENTER for Default) ---'
+        call get_param('Hs (m)', defaults%Hs, user_inputs%Hs)
+        call get_param('Tm (s)', defaults%Tm, user_inputs%Tm)
+        call get_param('Number of waves (Nz)', defaults%Number_of_Waves, user_inputs%Number_of_Waves)
+        call get_param('Nod (Damage)', defaults%Nod, user_inputs%Nod)
+        call get_param('Concrete Weight Trunk (kN/m3)', defaults%Wc, user_inputs%Wc)
+        if (defaults%use_en13383) then
+            call get_text_param('Use standard EN 13383 underlayer grading? [true/false]', 'true', s)
+        else
+            call get_text_param('Use standard EN 13383 underlayer grading? [true/false]', 'false', s)
+        end if
+        user_inputs%use_en13383 = parse_bool(s, defaults%use_en13383)
+        call get_text_param('Custom underlayer family [AUTO/HMA/LMA/CP]', trim(defaults%custom_family), s)
+        user_inputs%custom_family = normalize_family(s)
+        user_inputs%Ww = defaults%Ww
+    end subroutine run_interactive
+
+    subroutine get_param(prompt, default_val, out_val)
+        character(len=*), intent(in) :: prompt
+        real(dp), intent(in) :: default_val
+        real(dp), intent(out) :: out_val
+        character(len=256) :: s
+        integer :: ios_local
+        out_val = default_val
+        write(*,'(A," [",F0.2,"]: ")', advance='no') trim(prompt), default_val
+        read(*,'(A)') s
+        s = trim(adjustl(s))
+        if (len_trim(s) > 0) then
+            read(s, *, iostat=ios_local) out_val
+            if (ios_local /= 0) out_val = default_val
+        end if
+    end subroutine get_param
+
+    subroutine get_text_param(prompt, default_val, out_val)
+        character(len=*), intent(in) :: prompt, default_val
+        character(len=*), intent(out) :: out_val
+        character(len=256) :: s
+        write(*,'(A," [",A,"]: ")', advance='no') trim(prompt), trim(default_val)
+        read(*,'(A)') s
+        s = trim(adjustl(s))
+        if (len_trim(s) == 0) then
+            out_val = trim(default_val)
+        else
+            out_val = s
+        end if
+    end subroutine get_text_param
+
+    pure function upper_copy(s) result(out)
+        character(len=*), intent(in) :: s
+        character(len=len(s)) :: out
+        integer :: i, c
+        out = s
+        do i = 1, len(s)
+            c = iachar(out(i:i))
+            if (c >= iachar('a') .and. c <= iachar('z')) out(i:i) = achar(c - 32)
+        end do
+    end function upper_copy
+
+    pure logical function starts_with(value, prefix)
+        character(len=*), intent(in) :: value, prefix
+        integer :: lp
+        lp = len_trim(prefix)
+        if (len_trim(value) < lp) then
+            starts_with = .false.
+        else
+            starts_with = (value(1:lp) == prefix(1:lp))
+        end if
+    end function starts_with
+
+    pure function normalize_family(s) result(out)
+        character(len=*), intent(in) :: s
+        character(len=16) :: out
+        character(len=256) :: t
+        t = upper_copy(trim(adjustl(s)))
+        select case (trim(t))
+            case ('AUTO','HMA','LMA','CP')
+                out = trim(t)
+            case default
+                out = 'AUTO'
+        end select
+    end function normalize_family
+
+    logical function parse_bool(s, default_val)
+        character(len=*), intent(in) :: s
+        logical, intent(in) :: default_val
+        character(len=256) :: t
+        t = upper_copy(trim(adjustl(s)))
+        if (len_trim(t) == 0) then
+            parse_bool = default_val
+        else if (trim(t) == '1' .or. trim(t) == 'TRUE' .or. trim(t) == 'T' .or. trim(t) == 'YES' .or. trim(t) == 'Y') then
+            parse_bool = .true.
+        else if (trim(t) == '0' .or. trim(t) == 'FALSE' .or. trim(t) == 'F' .or. trim(t) == 'NO' .or. trim(t) == 'N') then
+            parse_bool = .false.
+        else
+            parse_bool = default_val
+        end if
+    end function parse_bool
+
+    pure real(dp) function calculate_L0(Tm)
+        real(dp), intent(in) :: Tm
+        calculate_L0 = (g * Tm**2) / (2.0_dp * PI)
+    end function calculate_L0
+
+    pure function get_formula_display_name(formula_id) result(name)
+        integer, intent(in) :: formula_id
+        character(len=100) :: name
+        select case (formula_id)
+            case (1)
+                name = 'Van der Meer (1988a) - Simple Cubes (Slope 2.0:1)'
+            case (2)
+                name = 'Van der Meer (1988a) - Simple Cubes (Slope 1.5:1)'
+            case (3)
+                name = 'Chegini-Aghtouman (2006) - Antifer (Slope 2.0:1)'
+            case (4)
+                name = 'Chegini-Aghtouman (2006) - Antifer (Slope 1.5:1)'
+            case default
+                name = 'Unknown formula'
+        end select
+    end function get_formula_display_name
+
+    pure function grading_family(grading_name) result(family)
+        character(len=*), intent(in) :: grading_name
+        character(len=8) :: family
+        if (starts_with(trim(grading_name), 'HMA')) then
+            family = 'HMA'
+        else if (starts_with(trim(grading_name), 'LMA')) then
+            family = 'LMA'
+        else if (starts_with(trim(grading_name), 'CP')) then
+            family = 'CP'
+        else
+            family = 'UNKNOWN'
+        end if
+    end function grading_family
+
+    subroutine get_family_gradings(gradings, family, out, nout)
+        type(GradingDef), intent(in) :: gradings(:)
+        character(len=*), intent(in) :: family
+        type(GradingDef), intent(out) :: out(size(gradings))
+        integer, intent(out) :: nout
+        integer :: i, j
+        type(GradingDef) :: tmp
+        real(dp) :: ma, mb
+
+        nout = 0
+        do i = 1, size(gradings)
+            if (trim(grading_family(gradings(i)%name)) == trim(family)) then
+                nout = nout + 1
+                out(nout) = gradings(i)
+            end if
+        end do
+        if (nout <= 1) return
+        do i = 1, nout - 1
+            do j = i + 1, nout
+                ma = 0.5_dp * (out(i)%NLL_kg + out(i)%NUL_kg)
+                mb = 0.5_dp * (out(j)%NLL_kg + out(j)%NUL_kg)
+                if (mb < ma) then
+                    tmp = out(i)
+                    out(i) = out(j)
+                    out(j) = tmp
+                end if
+            end do
+        end do
+    end subroutine get_family_gradings
+
+    function select_custom_family(gradings, target_mass) result(best_family)
+        type(GradingDef), intent(in) :: gradings(:)
+        real(dp), intent(in) :: target_mass
+        character(len=8) :: best_family
+        integer :: i
+        real(dp) :: safe_mass, best_score, score, m50
+        character(len=8) :: fam
+
+        safe_mass = max(target_mass, 1.0e-9_dp)
+        best_score = huge(1.0_dp)
+        best_family = 'LMA'
+        do i = 1, size(gradings)
+            fam = grading_family(gradings(i)%name)
+            if (trim(fam) == 'UNKNOWN') cycle
+            m50 = 0.5_dp * (gradings(i)%NLL_kg + gradings(i)%NUL_kg)
+            score = abs(log(safe_mass) - log(max(m50, 1.0e-9_dp)))
+            if (trim(fam) == 'CP') score = score + 0.08_dp
+            if (score < best_score) then
+                best_score = score
+                best_family = fam
+            end if
+        end do
+    end function select_custom_family
+
+    function interpolate_family_ratio(gradings, target_mass, family, note) result(ratio)
+        type(GradingDef), intent(in) :: gradings(:)
+        real(dp), intent(in) :: target_mass
+        character(len=*), intent(in) :: family
+        character(len=*), intent(out) :: note
+        real(dp) :: ratio
+        type(GradingDef) :: fam(size(gradings))
+        integer :: n, i
+        real(dp) :: x(size(gradings)), y(size(gradings)), xt, t, m50, log_ratio
+
+        call get_family_gradings(gradings, family, fam, n)
+        if (n == 0) then
+            note = 'fallback ratio R=NUL/NLL = 3.0 (no family data)'
+            ratio = 3.0_dp
+            return
+        end if
+
+        do i = 1, n
+            m50 = 0.5_dp * (fam(i)%NLL_kg + fam(i)%NUL_kg)
+            x(i) = log(max(m50, 1.0e-9_dp))
+            y(i) = log(max(fam(i)%NUL_kg / fam(i)%NLL_kg, 1.0_dp + 1.0e-9_dp))
+        end do
+        xt = log(max(target_mass, 1.0e-9_dp))
+
+        if (n == 1) then
+            ratio = fam(1)%NUL_kg / fam(1)%NLL_kg
+            note = trim(family)//' family single-point ratio used'
+            return
+        end if
+
+        if (xt <= x(1)) then
+            ratio = exp(y(1))
+            note = trim(family)//' family ratio clamped to lower-end class '//trim(fam(1)%name)
+            return
+        end if
+
+        if (xt >= x(n)) then
+            ratio = exp(y(n))
+            note = trim(family)//' family ratio clamped to upper-end class '//trim(fam(n)%name)
+            return
+        end if
+
+        do i = 1, n - 1
+            if (xt >= x(i) .and. xt <= x(i+1)) then
+                t = (xt - x(i)) / (x(i+1) - x(i))
+                log_ratio = y(i) + t * (y(i+1) - y(i))
+                ratio = exp(log_ratio)
+                note = trim(family)//' family ratio interpolated between '//trim(fam(i)%name)//' and '//trim(fam(i+1)%name)
+                return
+            end if
+        end do
+
+        ratio = exp(y(n))
+        note = trim(family)//' family ratio fallback to upper-end class '//trim(fam(n)%name)
+    end function interpolate_family_ratio
+
+    function calculate_underlayer_params(gradings, W_armor, use_en13383, requested_custom_family) result(res)
+        type(GradingDef), intent(in) :: gradings(:)
+        real(dp), intent(in) :: W_armor
+        logical, intent(in) :: use_en13383
+        character(len=*), intent(in) :: requested_custom_family
+        type(UnderlayerResult) :: res
+        integer :: i
+        logical :: found
+        type(GradingDef) :: selected
+        real(dp) :: target_weight, target_mass_kg, min_range_width, current_range
+        character(len=16) :: family
+        character(len=128) :: ratio_note
+        real(dp) :: ratio_nul_nll, nll_kg, nul_kg, reference_weight_kn
 
         target_weight = W_armor / 10.0_dp
         target_mass_kg = (target_weight * 1000.0_dp) / g
-        
-        min_range_width = HUGE(1.0_dp)
-        found = .FALSE.
-        
-        final_M50 = 0.0_dp
-        final_NLL = 0.0_dp
-        final_NUL = 0.0_dp
 
-        ! --- CONTAINMENT & TIGHTEST RANGE LOGIC ---
-        DO i = 1, SIZE(standard_gradings)
-            ! Check containment: Target must be strictly inside nominal limits
-            IF (target_mass_kg > standard_gradings(i)%NLL_kg .AND. target_mass_kg < standard_gradings(i)%NUL_kg) THEN
-                current_range = standard_gradings(i)%NUL_kg - standard_gradings(i)%NLL_kg
-                
-                ! Update if this is the first match OR if this range is tighter (smaller)
-                IF (current_range < min_range_width) THEN
-                    min_range_width = current_range
-                    best_name = standard_gradings(i)%name
-                    final_NLL = standard_gradings(i)%NLL_kg
-                    final_NUL = standard_gradings(i)%NUL_kg
-                    final_M50 = 0.5_dp * (final_NLL + final_NUL)
-                    found = .TRUE.
-                END IF
-            END IF
-        END DO
-        
-        ! Fallback if no grading strictly contains the target mass
-        IF (.NOT. found .AND. SIZE(standard_gradings) > 0) THEN
-            best_name = standard_gradings(1)%name
-            final_NLL = standard_gradings(1)%NLL_kg
-            final_NUL = standard_gradings(1)%NUL_kg
-            final_M50 = 0.5_dp * (final_NLL + final_NUL)
-        END IF
-
-        ! --- EN 13383 LIMIT CALCULATIONS ---
-        ELL = 0.7_dp * final_NLL
-        EUL = 1.5_dp * final_NUL
-        W_mean_kn = (final_M50 * g) / 1000.0_dp
-        
-        res%grading_name = best_name
         res%target_W = target_weight
         res%target_M50_kg = target_mass_kg
-        res%M50_kg = final_M50
-        res%NLL_kg = final_NLL
-        res%NUL_kg = final_NUL
-        res%ELL_kg = ELL
-        res%EUL_kg = EUL
-        res%W_mean_kn = W_mean_kn
-        res%Dn_rock = (W_mean_kn / W_rock_spec_val)**(1.0_dp/3.0_dp)
+        res%used_custom_interpolation = .false.
+        res%custom_family = ''
+        res%custom_ratio_nul_nll = 0.0_dp
+        res%custom_ratio_note = ''
+
+        if (use_en13383) then
+            found = .false.
+            min_range_width = huge(1.0_dp)
+            do i = 1, size(gradings)
+                if (target_mass_kg > gradings(i)%NLL_kg .and. target_mass_kg < gradings(i)%NUL_kg) then
+                    current_range = gradings(i)%NUL_kg - gradings(i)%NLL_kg
+                    if (current_range < min_range_width) then
+                        min_range_width = current_range
+                        selected = gradings(i)
+                        found = .true.
+                    end if
+                end if
+            end do
+            if (found) then
+                res%grading_name = selected%name
+                res%M50_kg = 0.5_dp * (selected%NLL_kg + selected%NUL_kg)
+                res%NLL_kg = selected%NLL_kg
+                res%NUL_kg = selected%NUL_kg
+            end if
+        end if
+
+        if ((.not. use_en13383) .or. (res%NUL_kg <= res%NLL_kg)) then
+            family = normalize_family(requested_custom_family)
+            if (trim(family) /= 'HMA' .and. trim(family) /= 'LMA' .and. trim(family) /= 'CP') then
+                family = select_custom_family(gradings, target_mass_kg)
+            end if
+
+            ratio_nul_nll = interpolate_family_ratio(gradings, target_mass_kg, trim(family), ratio_note)
+            ratio_nul_nll = max(ratio_nul_nll, 1.01_dp)
+
+            nll_kg = (2.0_dp * target_mass_kg) / (1.0_dp + ratio_nul_nll)
+            nul_kg = ratio_nul_nll * nll_kg
+
+            res%grading_name = 'Custom Grading'
+            res%M50_kg = target_mass_kg
+            res%NLL_kg = nll_kg
+            res%NUL_kg = nul_kg
+            res%used_custom_interpolation = .true.
+            res%custom_family = family
+            res%custom_ratio_nul_nll = ratio_nul_nll
+            res%custom_ratio_note = ratio_note
+        end if
+
+        res%ELL_kg = 0.7_dp * res%NLL_kg
+        res%EUL_kg = 1.5_dp * res%NUL_kg
+        res%W_mean_kn = (res%M50_kg * g) / 1000.0_dp
+
+        if (res%used_custom_interpolation) then
+            reference_weight_kn = target_weight
+        else
+            reference_weight_kn = res%W_mean_kn
+        end if
+        res%Dn_rock = (reference_weight_kn / W_rock_spec_val)**(1.0_dp / 3.0_dp)
         res%r2 = 2.0_dp * res%Dn_rock
         res%f2 = 100.0_dp * 2.0_dp * 1.0_dp * (1.0_dp - P_rock) / (res%Dn_rock**2)
         res%W_rock_spec = W_rock_spec_val
-    END FUNCTION calculate_underlayer_params
+    end function calculate_underlayer_params
 
-    SUBROUTINE solve(formula_id, params, results_out)
-        INTEGER, INTENT(IN) :: formula_id
-        TYPE(Inputs), INTENT(IN) :: params
-        TYPE(FullResults), INTENT(OUT) :: results_out
-        
-        TYPE(FormulaParams) :: coeffs
-        
-        REAL(dp) :: L0, k0, s0m, sm, Nz, storm_duration_hr, delta_trunk
-        REAL(dp) :: term_damage, term_waves, damage_wave_ratio, scaled_term, inv_f
-        REAL(dp) :: steepness_factor, Ns_trunk
-        REAL(dp) :: Dn, W_trunk, packing_density_trunk, kd_trunk_equiv
-        REAL(dp) :: h_trunk, a_trunk, b_trunk
-        
-        ! Head vars
-        REAL(dp) :: kd_ratio, kd_head_derived, delta_head, Wc_head, W_head
-        REAL(dp) :: Ns_head, packing_density_head, h_head, a_head, b_head
-        
-        ! 2. Load Coefficients
-        IF (formula_id < 1 .OR. formula_id > 4) THEN
-            PRINT *, "Invalid Formula ID"
-            STOP 1
-        END IF
-        
-        ! Copy to local struct for easy access
+    subroutine solve(formulas, gradings, formula_id, params, results)
+        type(FormulaParams), intent(in) :: formulas(4)
+        type(GradingDef), intent(in) :: gradings(:)
+        integer, intent(in) :: formula_id
+        type(Inputs), intent(in) :: params
+        type(FullResults), intent(out) :: results
+        type(FormulaParams) :: coeffs
+        real(dp) :: k1, k2, k3, k4, k5
+        real(dp) :: L0, k0, s0m, sm, Nz, storm_duration_hr, delta_trunk
+        real(dp) :: term_damage, term_waves, damage_wave_ratio, scaled_term, inv_f, steepness_factor
+        real(dp) :: Ns_trunk, Dn, W_trunk, packing_density_trunk
+        real(dp) :: slope, kd_trunk_equiv
+        type(UnderlayerResult) :: ul_trunk, ul_head
+        real(dp) :: kd_ratio, kd_head_derived, delta_head, Wc_head, W_head, Ns_head, packing_density_head
+        real(dp) :: r1, vol_trunk, h_trunk, a_trunk, b_trunk, vol_head, h_head, a_head, b_head
+
+        if (formula_id < 1 .or. formula_id > 4) stop 'Invalid Formula ID'
+
         coeffs = formulas(formula_id)
-        
-        ! 3. Preliminary Hydraulic Calculations
+        k1 = coeffs%k1
+        k2 = coeffs%k2
+        k3 = coeffs%k3
+        k4 = coeffs%k4
+        k5 = coeffs%k5
+
         L0 = calculate_L0(params%Tm)
         k0 = (2.0_dp * PI) / L0
         s0m = params%Hs / L0
         sm = s0m
-        
-        Nz = params%Number_Of_Waves
+        Nz = params%Number_of_Waves
         storm_duration_hr = (Nz * params%Tm) / 3600.0_dp
         delta_trunk = (params%Wc / params%Ww) - 1.0_dp
-        
-        ! 4. Algorithmic Core (Chegini-Aghtouman / Van der Meer) - TRUNK
-        term_damage = params%Nod**coeffs%k2
-        term_waves = Nz**coeffs%k3
+
+        term_damage = params%Nod**k2
+        term_waves = Nz**k3
         damage_wave_ratio = term_damage / term_waves
-        
-        scaled_term = coeffs%k1 * damage_wave_ratio
-        inv_f = scaled_term + coeffs%k4
-        
-        steepness_factor = s0m**(-coeffs%k5)
-        
+        scaled_term = k1 * damage_wave_ratio
+        inv_f = scaled_term + k4
+        steepness_factor = s0m**(-k5)
         Ns_trunk = inv_f * steepness_factor
-        
-        ! 5. Block Sizing (Armor) - TRUNK
+
         Dn = params%Hs / (delta_trunk * Ns_trunk)
-        W_trunk = params%Wc * (Dn**3)
-        packing_density_trunk = 100.0_dp * 2.0_dp * 1.1_dp * (1.0_dp - P_cubes) / (Dn**2)
-        
-        ! 6. Hudson Comparative Calculation
-        kd_trunk_equiv = (params%Wc * (params%Hs**3)) / (W_trunk * (delta_trunk**3) * coeffs%slope_ratio)
-        
-        ! 7. UNDERLAYER - TRUNK
-        results_out%underlayer_trunk = calculate_underlayer_params(W_trunk)
-        
-        ! 8. HEAD CALCULATION (FIXED RATIO 1.5)
+        W_trunk = params%Wc * Dn**3
+        packing_density_trunk = 100.0_dp * 2.0_dp * 1.1_dp * (1.0_dp - P_cubes) / Dn**2
+
+        slope = coeffs%slope_ratio
+        kd_trunk_equiv = (params%Wc * params%Hs**3) / (W_trunk * delta_trunk**3 * slope)
+
+        ul_trunk = calculate_underlayer_params(gradings, W_trunk, params%use_en13383, params%custom_family)
+
         kd_ratio = KD_RATIO_FIXED
         kd_head_derived = kd_trunk_equiv / kd_ratio
-        delta_head = delta_trunk * (kd_ratio**(1.0_dp/3.0_dp))
+        delta_head = delta_trunk * kd_ratio**(1.0_dp / 3.0_dp)
         Wc_head = params%Ww * (delta_head + 1.0_dp)
         W_head = W_trunk * (Wc_head / params%Wc)
-        
-        ! Calculate Stability Number for Head
         Ns_head = params%Hs / (delta_head * Dn)
-        packing_density_head = 100.0_dp * 2.0_dp * 1.1_dp * (1.0_dp - P_cubes) / (Dn**2)
-        
-        ! 9. UNDERLAYER - HEAD
-        results_out%underlayer_head = calculate_underlayer_params(W_head)
-        
-        ! 10. Armor Layer Details (Common)
-        results_out%final_trunk%r1 = 2.0_dp * 1.1_dp * Dn
-        
-        ! Dimensions
-        h_trunk = ((W_trunk / params%Wc) / 1.0247_dp)**(1.0_dp/3.0_dp)
+        packing_density_head = 100.0_dp * 2.0_dp * 1.1_dp * (1.0_dp - P_cubes) / Dn**2
+
+        ul_head = calculate_underlayer_params(gradings, W_head, params%use_en13383, params%custom_family)
+
+        r1 = 2.0_dp * 1.1_dp * Dn
+
+        vol_trunk = W_trunk / params%Wc
+        h_trunk = (vol_trunk / 1.0247_dp)**(1.0_dp / 3.0_dp)
         a_trunk = 1.086_dp * h_trunk
         b_trunk = 1.005_dp * h_trunk
-        
-        h_head = ((W_head / Wc_head) / 1.0247_dp)**(1.0_dp/3.0_dp)
+
+        vol_head = W_head / Wc_head
+        h_head = (vol_head / 1.0247_dp)**(1.0_dp / 3.0_dp)
         a_head = 1.086_dp * h_head
         b_head = 1.005_dp * h_head
-        
-        ! 11. Compile Results
-        results_out%inputs = params
-        results_out%coefficients = coeffs
-        
-        results_out%intermediate%L0 = L0
-        results_out%intermediate%k0 = k0
-        results_out%intermediate%s0m = s0m
-        results_out%intermediate%sm = sm
-        results_out%intermediate%Nz = Nz
-        results_out%intermediate%Storm_Duration_hr = storm_duration_hr
-        results_out%intermediate%delta = delta_trunk
-        results_out%intermediate%Ns_trunk = Ns_trunk
-        
-        results_out%final_trunk%Ns = Ns_trunk
-        results_out%final_trunk%Dn = Dn
-        results_out%final_trunk%W = W_trunk
-        results_out%final_trunk%Mass_tonnes = W_trunk / g
-        results_out%final_trunk%Kd = kd_trunk_equiv
-        results_out%final_trunk%packing_density = packing_density_trunk
-        results_out%final_trunk%dims%H = h_trunk
-        results_out%final_trunk%dims%A = a_trunk
-        results_out%final_trunk%dims%B = b_trunk
-        
-        results_out%final_head%Ns = Ns_head
-        results_out%final_head%Dn = Dn
-        results_out%final_head%Kd = kd_head_derived
-        results_out%final_head%Kd_Ratio = kd_ratio
-        results_out%final_head%Delta_Required = delta_head
-        results_out%final_head%Wc_Required = Wc_head
-        results_out%final_head%W = W_head
-        results_out%final_head%Mass_tonnes = W_head / g
-        results_out%final_head%packing_density = packing_density_head
-        results_out%final_head%dims%H = h_head
-        results_out%final_head%dims%A = a_head
-        results_out%final_head%dims%B = b_head
-        
-        results_out%P_rock_val = P_rock
-        results_out%P_cubes_val = P_cubes
-        
-    END SUBROUTINE solve
 
-    SUBROUTINE generate_report_file(results, filepath)
-        TYPE(FullResults), INTENT(IN) :: results
-        CHARACTER(LEN=*), INTENT(IN) :: filepath
-        
-        INTEGER :: u, iostatus_val
-        CHARACTER(LEN=200) :: line
-        CHARACTER(LEN=80) :: separator
-        REAL(dp) :: armor_vol_trunk, armor_vol_head
-        
-        separator = "--------------------------------------------------------------------------------"
+        results%inputs = params
+        results%coefficients = coeffs
+        results%intermediate%L0 = L0
+        results%intermediate%k0 = k0
+        results%intermediate%s0m = s0m
+        results%intermediate%sm = sm
+        results%intermediate%Nz = Nz
+        results%intermediate%Storm_Duration_hr = storm_duration_hr
+        results%intermediate%delta = delta_trunk
+        results%intermediate%Ns_trunk = Ns_trunk
 
-        IF (TRIM(results%coefficients%type_name) == "Antifer") THEN
-            armor_vol_trunk = 1.0247_dp * (results%final_trunk%dims%H**3)
-            armor_vol_head = 1.0247_dp * (results%final_head%dims%H**3)
-        ELSE
+        results%final_trunk%Ns = Ns_trunk
+        results%final_trunk%Dn = Dn
+        results%final_trunk%W = W_trunk
+        results%final_trunk%Mass_tonnes = W_trunk / g
+        results%final_trunk%Kd = kd_trunk_equiv
+        results%final_trunk%r1 = r1
+        results%final_trunk%packing_density = packing_density_trunk
+        results%final_trunk%dims = Dimensions(h_trunk, a_trunk, b_trunk)
+
+        results%underlayer_trunk = ul_trunk
+
+        results%final_head%Ns = Ns_head
+        results%final_head%Dn = Dn
+        results%final_head%Kd = kd_head_derived
+        results%final_head%Kd_Ratio = kd_ratio
+        results%final_head%Delta_Required = delta_head
+        results%final_head%Wc_Required = Wc_head
+        results%final_head%W = W_head
+        results%final_head%Mass_tonnes = W_head / g
+        results%final_head%packing_density = packing_density_head
+        results%final_head%dims = Dimensions(h_head, a_head, b_head)
+
+        results%underlayer_head = ul_head
+        results%P_rock_val = P_rock
+        results%P_cubes_val = P_cubes
+    end subroutine solve
+
+    subroutine write_line_pair(u, line)
+        integer, intent(in) :: u
+        character(len=*), intent(in) :: line
+        write(u,'(A)') trim(line)
+        write(*,'(A)') trim(line)
+    end subroutine write_line_pair
+
+    function fmt_real(val, prec) result(out)
+        real(dp), intent(in) :: val
+        integer, intent(in) :: prec
+        character(len=64) :: out
+        character(len=32) :: f
+        integer :: width
+        if (prec == 0) then
+            write(out,'(I0)') nint(val)
+        else
+            width = max(prec + 8, 8)
+            write(f,'("(F",I0,".",I0,")")') width, prec
+            write(out, f) val
+            out = adjustl(out)
+        end if
+    end function fmt_real
+
+    function fmt_int(val) result(out)
+        integer, intent(in) :: val
+        character(len=64) :: out
+        write(out,'(I0)') val
+        out = adjustl(out)
+    end function fmt_int
+
+    function make_field(label, value, width) result(line)
+        character(len=*), intent(in) :: label, value
+        integer, intent(in) :: width
+        character(len=256) :: line
+        line = '   ' // pad_right(trim(label), width) // ' : ' // trim(value)
+    end function make_field
+
+    pure function pad_right(s, width) result(out)
+        character(len=*), intent(in) :: s
+        integer, intent(in) :: width
+        character(len=:), allocatable :: out
+        integer :: ls
+        ls = len_trim(s)
+        if (ls >= width) then
+            out = s(1:ls)
+        else
+            out = s(1:ls) // repeat(' ', width - ls)
+        end if
+    end function pad_right
+
+
+    subroutine generate_report_file(results, filepath)
+        type(FullResults), intent(in) :: results
+        character(len=*), intent(in) :: filepath
+        integer :: u, iostat_val
+        real(dp) :: armor_vol_trunk, armor_vol_head
+        character(len=100) :: methodology_name
+
+        if (trim(results%coefficients%type_name) == 'Antifer') then
+            armor_vol_trunk = 1.0247_dp * results%final_trunk%dims%H**3
+            armor_vol_head = 1.0247_dp * results%final_head%dims%H**3
+        else
             armor_vol_trunk = results%final_trunk%Dn**3
             armor_vol_head = results%final_head%Dn**3
-        END IF
-        
-        OPEN(NEWUNIT=u, FILE=filepath, STATUS='UNKNOWN', ACTION='WRITE', POSITION='APPEND', IOSTAT=iostatus_val)
-        IF (iostatus_val /= 0) THEN
-            PRINT *, "Error saving file."
-            RETURN
-        END IF
-        
-        WRITE(u, '(A)') "================================================================================"
-        WRITE(u, '(A)') "    TECHNICAL REPORT: BREAKWATER ARMOR & UNDERLAYER DESIGN                        "
-        WRITE(u, '(A)') "================================================================================"
-        WRITE(u, '(A)') "Methodology: " // TRIM(results%coefficients%name)
-        WRITE(u, '(A)') TRIM(separator)
-        
-        WRITE(u, '(A)') "1. INPUT PARAMETERS"
-        WRITE(u, '(A, F0.2, A)') "   Hs (Sigificant Wave Height)         : ", results%inputs%Hs, " m"
-        WRITE(u, '(A, F0.2, A)') "   Tm (Mean Wave Period)               : ", results%inputs%Tm, " s"
-        WRITE(u, '(A, I0)')      "   Number of waves (Nz)                : ", NINT(results%inputs%Number_Of_Waves)
-        WRITE(u, '(A, F0.2)')    "   Nod (Damage)                        : ", results%inputs%Nod
-        WRITE(u, '(A, F0.2, A)') "   Wc Trunk (Concrete Spec. Weight)    : ", results%inputs%Wc, " kN/m3"
-        WRITE(u, '(A, F0.2, A)') "   Ww (Water Specific Weight)          : ", results%inputs%Ww, " kN/m3"
-        WRITE(u, '(A, F0.4)')    "   Relative Density D=(Wc/Ww)-1        : ", results%intermediate%delta
-        WRITE(u, '(A, F0.1, A)') "   Structure Slope (TRUNK & HEAD)      : ", results%coefficients%slope_ratio, ":1"
-        WRITE(u, '(A, I0, A)')   "   Porosity (Cubes)                    : ", INT(results%P_cubes_val * 100.0_dp), "%"
-        WRITE(u, '(A, I0, A)')   "   Porosity (Rock Layer)               : ", INT(results%P_rock_val * 100.0_dp), "%"
-        WRITE(u, '(A)') TRIM(separator)
-        
-        WRITE(u, '(A)') "2. INTERMEDIATE PARAMETERS"
-        WRITE(u, '(A, F0.2, A)') "   Wave Length (L0)                    : ", results%intermediate%L0, " m"
-        WRITE(u, '(A, F0.4)')    "   wave number (k0 = 2*pi/L0)          : ", results%intermediate%k0
-        WRITE(u, '(A, F0.4)')    "   wave steepness (s0m = Hs/L0)        : ", results%intermediate%s0m
-        WRITE(u, '(A, F0.3, A)') "   Storm Duration (h)                  : ", results%intermediate%Storm_Duration_hr, " h"
-        WRITE(u, '(A, F0.4)')    "   Stability Number TRUNK (Ns)         : ", results%intermediate%Ns_trunk
-        WRITE(u, '(A, F0.4)')    "   Stability Number HEAD (Ns)          : ", results%final_head%Ns
-        WRITE(u, '(A)') TRIM(separator)
-        
-        WRITE(u, '(A)') "3. ARMOR LAYER RESULTS - TRUNK"
-        WRITE(u, '(A, F0.2, A)') "   BLOCK WEIGHT (W)                    : ", results%final_trunk%W, " kN"
-        WRITE(u, '(A, F0.2, A)') "   Mass (ton)                          : ", results%final_trunk%Mass_tonnes, " t"
-        WRITE(u, '(A, F0.3, A)') "   Nominal Diameter (Dn)               : ", results%final_trunk%Dn, " m"
-        IF (TRIM(results%coefficients%type_name) == "Antifer") THEN
-            WRITE(u, '(A, F0.3, A)') "   Volume = 1.0247 * H^3 (V)           : ", armor_vol_trunk, " m3"
-        ELSE
-            WRITE(u, '(A, F0.3, A)') "   Volume = Dn^3 (V)                   : ", armor_vol_trunk, " m3"
-            WRITE(u, '(A, F0.3, A)') "   Cube Height (H)                     : ", results%final_trunk%dims%H, " m"
-            WRITE(u, '(A, F0.3, A)') "   Cube Top Width (B)                  : ", results%final_trunk%dims%B, " m"
-            WRITE(u, '(A, F0.3, A)') "   Cube Base Width (A)                 : ", results%final_trunk%dims%A, " m"
-        END IF
-        WRITE(u, '(A, F0.2)')    "   KD_TRUNK (Equivalent)               : ", results%final_trunk%Kd
-        WRITE(u, '(A, F0.2, A)') "   Double Layer Thickness (r1)         : ", results%final_trunk%r1, " m"
-        WRITE(u, '(A, F0.2)')    "   Packing Density, d [units/100m2]    : ", results%final_trunk%packing_density
-        WRITE(u, '(A)') ""
-        
-        WRITE(u, '(A)') "4. UNDERLAYER RESULTS - TRUNK"
-        WRITE(u, '(A, F0.2, A, F0.1, A)') "   Theoretical Target (W/10)           : ", &
-            results%underlayer_trunk%target_W, " kN (", &
-            results%underlayer_trunk%target_M50_kg, " kg)"
-        WRITE(u, '(A, A)')                "   Adopted rock grading                : ", TRIM(results%underlayer_trunk%grading_name)
-        WRITE(u, '(A, F0.1, A)')          "   Representative M50                  : ", results%underlayer_trunk%M50_kg, " kg"
-        WRITE(u, '(A, F0.1, A)')          "   Nominal lower limit (NLL)           : ", results%underlayer_trunk%NLL_kg, " kg"
-        WRITE(u, '(A, F0.1, A)')          "   Nominal upper limit (NUL)           : ", results%underlayer_trunk%NUL_kg, " kg"
-        WRITE(u, '(A, F0.1, A)')          "   Extreme lower limit (ELL)           : ", results%underlayer_trunk%ELL_kg, " kg"
-        WRITE(u, '(A, F0.1, A)')          "   Extreme upper limit (EUL)           : ", results%underlayer_trunk%EUL_kg, " kg"
-        WRITE(u, '(A, F0.3, A)')          "   Nominal Diameter (Dn_rock)          : ", results%underlayer_trunk%Dn_rock, " m"
-        WRITE(u, '(A, F0.2, A)')          "   Double Layer Thickness (r2)         : ", results%underlayer_trunk%r2, " m"
-        WRITE(u, '(A, F0.2)')             "   Packing Density, f2 [rocks/100m2]   : ", results%underlayer_trunk%f2
-        WRITE(u, '(A)') TRIM(separator)
-        
-        WRITE(u, '(A)') "5. ARMOR LAYER RESULTS - HEAD (High Density)"
-        WRITE(u, '(A)') "   *Maintains same Dn and Slope as Trunk*"
-        WRITE(u, '(A, F0.2)')    "   Stability Ratio (Kd_T/Kd_H)         : ", results%final_head%Kd_Ratio
-        WRITE(u, '(A, F0.3, A)') "   Nominal Diameter (Dn)               : ", results%final_head%Dn, " m"
-        IF (TRIM(results%coefficients%type_name) == "Antifer") THEN
-            WRITE(u, '(A, F0.3, A)') "   Volume = 1.0247 * H^3 (V)           : ", armor_vol_head, " m3"
-        ELSE
-            WRITE(u, '(A, F0.3, A)') "   Volume = Dn^3 (V)                   : ", armor_vol_head, " m3"
-            WRITE(u, '(A, F0.3, A)') "   Cube Height (H)                     : ", results%final_head%dims%H, " m"
-           WRITE(u, '(A, F0.3, A)') "   Cube Top width (B)                  : ", results%final_head%dims%B, " m"
-           WRITE(u, '(A, F0.3, A)') "   Cube Base Width (A)                 : ", results%final_head%dims%A, " m"
-        END IF
-        WRITE(u, '(A, F0.2)')    "   KD_HEAD (Equivalent)                : ", results%final_head%Kd
-        WRITE(u, '(A, F0.2, A)') "   Required Concrete Density (Wc)      : ", results%final_head%Wc_Required, " kN/m3"
-        WRITE(u, '(A, F0.2, A)') "   BLOCK WEIGHT (W)                    : ", results%final_head%W, " kN"
-        WRITE(u, '(A, F0.2, A)') "   Mass (ton)                          : ", results%final_head%Mass_tonnes, " t"
-        WRITE(u, '(A, F0.2)')    "   Packing Density, d [units/100m2]    : ", results%final_head%packing_density
-        WRITE(u, '(A)') ""
-        
-        WRITE(u, '(A)') "6. UNDERLAYER RESULTS - HEAD"
-        WRITE(u, '(A, F0.2, A, F0.1, A)') "   Theoretical Target (W/10)           : ", &
-            results%underlayer_head%target_W, " kN (", &
-            results%underlayer_head%target_M50_kg, " kg)"
-        WRITE(u, '(A, A)')                "   Adopted rock grading                : ", TRIM(results%underlayer_head%grading_name)
-        WRITE(u, '(A, F0.1, A)')          "   Representative M50                  : ", results%underlayer_head%M50_kg, " kg"
-        WRITE(u, '(A, F0.1, A)')          "   Nominal lower limit (NLL)           : ", results%underlayer_head%NLL_kg, " kg"
-        WRITE(u, '(A, F0.1, A)')          "   Nominal upper limit (NUL)           : ", results%underlayer_head%NUL_kg, " kg"
-        WRITE(u, '(A, F0.1, A)')          "   Extreme lower limit (ELL)           : ", results%underlayer_head%ELL_kg, " kg"
-        WRITE(u, '(A, F0.1, A)')          "   Extreme upper limit (EUL)           : ", results%underlayer_head%EUL_kg, " kg"
-        WRITE(u, '(A, F0.3, A)')          "   Nominal Diameter (Dn_rock)          : ", results%underlayer_head%Dn_rock, " m"
-        WRITE(u, '(A, F0.2, A)')          "   Double Layer Thickness (r2)         : ", results%underlayer_head%r2, " m"
-        WRITE(u, '(A, F0.2)')             "   Packing Density, f2 [rocks/100m2]   : ", results%underlayer_head%f2
-        WRITE(u, '(A)') "================================================================================"
-        
-        CLOSE(u)
-        
-        PRINT *, ""
-        PRINT *, " Report generated successfully: ", TRIM(filepath)
-        PRINT *, "Report content:"
-        PRINT *, ""
-        
-        OPEN(NEWUNIT=u, FILE=filepath, STATUS='OLD', ACTION='READ')
-        DO
-            READ(u, '(A)', IOSTAT=iostatus_val) line
-            IF (iostatus_val /= 0) EXIT
-            PRINT '(A)', TRIM(line)
-        END DO
-        CLOSE(u)
-    END SUBROUTINE generate_report_file
+        end if
 
-    ! Helper to get param with default
-    SUBROUTINE get_param(prompt, val)
-        CHARACTER(LEN=*), INTENT(IN) :: prompt
-        REAL(dp), INTENT(INOUT) :: val
-        CHARACTER(LEN=100) :: buffer
-        INTEGER :: iostatus_val
-        
-        WRITE(*, '(A, " [", F0.2, "]: ")', ADVANCE='NO') prompt, val
-        READ(*, '(A)') buffer
-        
-        IF (LEN_TRIM(buffer) > 0) THEN
-            READ(buffer, *, IOSTAT=iostatus_val) val
-            IF (iostatus_val /= 0) THEN
-                ! If read fails, keep default
-            END IF
-        END IF
-    END SUBROUTINE get_param
+        methodology_name = get_formula_display_name(results%inputs%Formula_ID)
 
-END PROGRAM BreakwaterCalculator
+        open(newunit=u, file=filepath, status='unknown', action='write', &
+             position='append', iostat=iostat_val)
+        if (iostat_val /= 0) stop 'Failed to open output.txt'
+
+        call write_line_pair(u, '================================================================================')
+        call write_line_pair(u, '    TECHNICAL REPORT: BREAKWATER ARMOR & UNDERLAYER DESIGN')
+        call write_line_pair(u, '================================================================================')
+        call write_line_pair(u, 'Methodology: ' // trim(methodology_name))
+        call write_line_pair(u, '--------------------------------------------------------------------------------')
+
+        call write_line_pair(u, '1. INPUT PARAMETERS')
+        call write_line_pair(u, make_field('Hs (Significant Wave Height)', &
+            trim(fmt_real(results%inputs%Hs,2))//' m', 38))
+        call write_line_pair(u, make_field('Tm (Mean Wave Period)', &
+            trim(fmt_real(results%inputs%Tm,2))//' s', 38))
+        call write_line_pair(u, make_field('Number of waves (Nz)', &
+            trim(fmt_int(nint(results%inputs%Number_of_Waves))), 38))
+        call write_line_pair(u, make_field('Nod (Damage)', &
+            trim(fmt_real(results%inputs%Nod,2)), 38))
+        call write_line_pair(u, make_field('Wc Trunk (Concrete Spec. Weight)', &
+            trim(fmt_real(results%inputs%Wc,2))//' kN/m3', 38))
+        call write_line_pair(u, make_field('Ww (Water Specific Weight)', &
+            trim(fmt_real(results%inputs%Ww,2))//' kN/m3', 38))
+        call write_line_pair(u, make_field('Relative Density D=(Wc/Ww)-1', &
+            trim(fmt_real(results%intermediate%delta,4)), 38))
+        call write_line_pair(u, make_field('Structure Slope (TRUNK & HEAD)', &
+            trim(fmt_real(results%coefficients%slope_ratio,1))//':1', 38))
+        call write_line_pair(u, make_field('Porosity (Cubes)', &
+            trim(fmt_real(results%P_cubes_val*100.0_dp,0))//'%', 38))
+        call write_line_pair(u, make_field('Porosity (Rock Layer)', &
+            trim(fmt_real(results%P_rock_val*100.0_dp,0))//'%', 38))
+        call write_line_pair(u, '--------------------------------------------------------------------------------')
+
+        call write_line_pair(u, '2. INTERMEDIATE PARAMETERS')
+        call write_line_pair(u, make_field('Wave Length (L0)', &
+            trim(fmt_real(results%intermediate%L0,2))//' m', 38))
+        call write_line_pair(u, make_field('Wave number (k0 = 2*pi/L0)', &
+            trim(fmt_real(results%intermediate%k0,4)), 38))
+        call write_line_pair(u, make_field('Wave steepness (s0m = Hs/L0)', &
+            trim(fmt_real(results%intermediate%s0m,4)), 38))
+        call write_line_pair(u, make_field('Storm Duration (h)', &
+            trim(fmt_real(results%intermediate%Storm_Duration_hr,3))//' h', 38))
+        call write_line_pair(u, make_field('Stability Number TRUNK (Ns)', &
+            trim(fmt_real(results%intermediate%Ns_trunk,4)), 38))
+        call write_line_pair(u, make_field('Stability Number HEAD (Ns)', &
+            trim(fmt_real(results%final_head%Ns,4)), 38))
+        call write_line_pair(u, '--------------------------------------------------------------------------------')
+
+        call write_line_pair(u, '3. ARMOR LAYER RESULTS - TRUNK')
+        call write_line_pair(u, make_field('BLOCK WEIGHT (W)', &
+            trim(fmt_real(results%final_trunk%W,2))//' kN', 38))
+        call write_line_pair(u, make_field('Mass (t)', &
+            trim(fmt_real(results%final_trunk%Mass_tonnes,2))//' t', 38))
+        call write_line_pair(u, make_field('Nominal Dimension (Dn)', &
+            trim(fmt_real(results%final_trunk%Dn,3))//' m', 38))
+        if (trim(results%coefficients%type_name) == 'Cubes') then
+            call write_line_pair(u, make_field('Volume = Dn^3 (V)', &
+                trim(fmt_real(armor_vol_trunk,3))//' m3', 38))
+        else
+            call write_line_pair(u, make_field('Volume = 1.0247 * H^3 (V)', &
+                trim(fmt_real(armor_vol_trunk,3))//' m3', 38))
+            call write_line_pair(u, make_field('Block Height (H)', &
+                trim(fmt_real(results%final_trunk%dims%H,3))//' m', 38))
+            call write_line_pair(u, make_field('Block Top Width (B)', &
+                trim(fmt_real(results%final_trunk%dims%B,3))//' m', 38))
+            call write_line_pair(u, make_field('Block Base Width (A)', &
+                trim(fmt_real(results%final_trunk%dims%A,3))//' m', 38))
+        end if
+        call write_line_pair(u, make_field('KD_TRUNK (Equivalent)', &
+            trim(fmt_real(results%final_trunk%Kd,2)), 38))
+        call write_line_pair(u, make_field('Double Layer Thickness (r1)', &
+            trim(fmt_real(results%final_trunk%r1,2))//' m', 38))
+        call write_line_pair(u, make_field('Packing Density, d [units/100m2]', &
+            trim(fmt_real(results%final_trunk%packing_density,2)), 38))
+        call write_line_pair(u, '')
+
+        call write_line_pair(u, '4. UNDERLAYER RESULTS - TRUNK')
+        call write_line_pair(u, make_field('Theoretical Target (W/10)', &
+            trim(fmt_real(results%underlayer_trunk%target_W,2))//' kN ('// &
+            trim(fmt_real(results%underlayer_trunk%target_M50_kg,1))//' kg)', 38))
+        call write_line_pair(u, make_field('Adopted rock grading', &
+            trim(results%underlayer_trunk%grading_name), 38))
+        call write_line_pair(u, make_field('Representative M50', &
+            trim(fmt_real(results%underlayer_trunk%M50_kg,1))//' kg', 38))
+        call write_line_pair(u, make_field('Nominal lower limit (NLL)', &
+            trim(fmt_real(results%underlayer_trunk%NLL_kg,1))//' kg', 38))
+        call write_line_pair(u, make_field('Nominal upper limit (NUL)', &
+            trim(fmt_real(results%underlayer_trunk%NUL_kg,1))//' kg', 38))
+        call write_line_pair(u, make_field('Extreme lower limit (ELL)', &
+            trim(fmt_real(results%underlayer_trunk%ELL_kg,1))//' kg', 38))
+        call write_line_pair(u, make_field('Extreme upper limit (EUL)', &
+            trim(fmt_real(results%underlayer_trunk%EUL_kg,1))//' kg', 38))
+        call write_line_pair(u, make_field('Nominal Dimension (Dn_rock)', &
+            trim(fmt_real(results%underlayer_trunk%Dn_rock,3))//' m', 38))
+        call write_line_pair(u, make_field('Double Layer Thickness (r2)', &
+            trim(fmt_real(results%underlayer_trunk%r2,2))//' m', 38))
+        call write_line_pair(u, make_field('Packing Density, f2 [rocks/100m2]', &
+            trim(fmt_real(results%underlayer_trunk%f2,2)), 38))
+        if (results%underlayer_trunk%used_custom_interpolation) then
+            call write_line_pair(u, make_field('Custom family basis', &
+                trim(results%underlayer_trunk%custom_family), 38))
+            call write_line_pair(u, make_field('Custom ratio R=NUL/NLL', &
+                trim(fmt_real(results%underlayer_trunk%custom_ratio_nul_nll,3)), 38))
+        end if
+        call write_line_pair(u, repeat('-',80))
+
+        call write_line_pair(u, '5. ARMOR LAYER RESULTS - HEAD (High Density)')
+        call write_line_pair(u, '   *Maintains same Dn and slope as Trunk*')
+        call write_line_pair(u, make_field('Stability Ratio (Kd_T/Kd_H)', &
+            trim(fmt_real(results%final_head%Kd_Ratio,2)), 38))
+        call write_line_pair(u, make_field('Nominal Dimension (Dn)', &
+            trim(fmt_real(results%final_head%Dn,3))//' m', 38))
+        if (trim(results%coefficients%type_name) == 'Cubes') then
+            call write_line_pair(u, make_field('Volume = Dn^3 (V)', &
+                trim(fmt_real(armor_vol_head,3))//' m3', 38))
+        else
+            call write_line_pair(u, make_field('Volume = 1.0247 * H^3 (V)', &
+                trim(fmt_real(armor_vol_head,3))//' m3', 38))
+            call write_line_pair(u, make_field('Block Height (H)', &
+                trim(fmt_real(results%final_head%dims%H,3))//' m', 38))
+            call write_line_pair(u, make_field('Block Top Width (B)', &
+                trim(fmt_real(results%final_head%dims%B,3))//' m', 38))
+            call write_line_pair(u, make_field('Block Base Width (A)', &
+                trim(fmt_real(results%final_head%dims%A,3))//' m', 38))
+        end if
+        call write_line_pair(u, make_field('KD_HEAD (Equivalent)', &
+            trim(fmt_real(results%final_head%Kd,2)), 38))
+        call write_line_pair(u, make_field('Required Concrete Density (Wc)', &
+            trim(fmt_real(results%final_head%Wc_Required,2))//' kN/m3', 38))
+        call write_line_pair(u, make_field('BLOCK WEIGHT (W)', &
+            trim(fmt_real(results%final_head%W,2))//' kN', 38))
+        call write_line_pair(u, make_field('Mass (t)', &
+            trim(fmt_real(results%final_head%Mass_tonnes,2))//' t', 38))
+        call write_line_pair(u, make_field('Packing Density, d [units/100m2]', &
+            trim(fmt_real(results%final_head%packing_density,2)), 38))
+        call write_line_pair(u, '')
+
+        call write_line_pair(u, '6. UNDERLAYER RESULTS - HEAD')
+        call write_line_pair(u, make_field('Theoretical Target (W/10)', &
+            trim(fmt_real(results%underlayer_head%target_W,2))//' kN ('// &
+            trim(fmt_real(results%underlayer_head%target_M50_kg,1))//' kg)', 38))
+        call write_line_pair(u, make_field('Adopted rock grading', &
+            trim(results%underlayer_head%grading_name), 38))
+        call write_line_pair(u, make_field('Representative M50', &
+            trim(fmt_real(results%underlayer_head%M50_kg,1))//' kg', 38))
+        call write_line_pair(u, make_field('Nominal lower limit (NLL)', &
+            trim(fmt_real(results%underlayer_head%NLL_kg,1))//' kg', 38))
+        call write_line_pair(u, make_field('Nominal upper limit (NUL)', &
+            trim(fmt_real(results%underlayer_head%NUL_kg,1))//' kg', 38))
+        call write_line_pair(u, make_field('Extreme lower limit (ELL)', &
+            trim(fmt_real(results%underlayer_head%ELL_kg,1))//' kg', 38))
+        call write_line_pair(u, make_field('Extreme upper limit (EUL)', &
+            trim(fmt_real(results%underlayer_head%EUL_kg,1))//' kg', 38))
+        call write_line_pair(u, make_field('Nominal Dimension (Dn_rock)', &
+            trim(fmt_real(results%underlayer_head%Dn_rock,3))//' m', 38))
+        call write_line_pair(u, make_field('Double Layer Thickness (r2)', &
+            trim(fmt_real(results%underlayer_head%r2,2))//' m', 38))
+        call write_line_pair(u, make_field('Packing Density, f2 [rocks/100m2]', &
+            trim(fmt_real(results%underlayer_head%f2,2)), 38))
+        if (results%underlayer_head%used_custom_interpolation) then
+            call write_line_pair(u, make_field('Custom family basis', &
+                trim(results%underlayer_head%custom_family), 38))
+            call write_line_pair(u, make_field('Custom ratio R=NUL/NLL', &
+                trim(fmt_real(results%underlayer_head%custom_ratio_nul_nll,3)), 38))
+        end if
+        call write_line_pair(u, repeat('=',80))
+
+        close(u)
+    end subroutine generate_report_file
+
+end program BreakwaterCalculator

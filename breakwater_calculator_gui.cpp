@@ -266,6 +266,7 @@
 #include <fstream>
 #include <cstring>
 #include <stdexcept>
+#include <cctype>
 
 // --- Data Structures ---
 
@@ -280,6 +281,7 @@ struct GradingDef {
     std::string name;
     double NLL_kg;
     double NUL_kg;
+    double M50_kg;
 };
 
 struct Dimensions {
@@ -302,6 +304,11 @@ struct UnderlayerResult {
     double r2;
     double f2;
     double W_rock_spec;
+
+    bool used_custom_interpolation;
+    std::string custom_family;
+    double custom_ratio_nul_nll;
+    std::string custom_ratio_note;
 };
 
 struct ArmorResult {
@@ -339,6 +346,8 @@ struct Inputs {
     double Wc;
     double Ww;
     int Formula_ID;
+    bool use_standard_underlayer_grading;
+    std::string custom_underlayer_family;
 };
 
 struct FullResults {
@@ -385,27 +394,27 @@ public:
 
         standard_gradings = {
             // Coarse / Light Gradings
-            {"CP32/90",        0.868,   19.319},
-            {"CP45/125",       2.415,	51.758},
-            {"CP63/180",       6.626,	154.548},
-            {"CP90/250",       19.319,	414.063},
-            {"CP45/180",       2.415,	154.548},
-            {"CP90/180",       19.319,	154.548},
+            {"CP32/90",        0.868,   19.319,   10.0935},
+            {"CP45/125",       2.415,   51.758,   27.0865},
+            {"CP63/180",       6.626,   154.548,  80.5870},
+            {"CP90/250",       19.319,  414.063,  216.6910},
+            {"CP45/180",       2.415,   154.548,  78.4815},
+            {"CP90/180",       19.319,  154.548,  86.9335},
 
             // Light Mass Armourstone (LMA)
-            {"LMA5-40",        5,     40},
-            {"LMA10-60",       10,    60},
-            {"LMA15-120",      15,    120},
-            {"LMA40-200",      40,    200},
-            {"LMA60-300",      60,    300},
-            {"LMA15-300",      15,    300},
+            {"LMA5-40",        5.0,     40.0,     22.5},
+            {"LMA10-60",       10.0,    60.0,     35.0},
+            {"LMA15-120",      15.0,    120.0,    67.5},
+            {"LMA40-200",      40.0,    200.0,    120.0},
+            {"LMA60-300",      60.0,    300.0,    180.0},
+            {"LMA15-300",      15.0,    300.0,    157.5},
 
             // Heavy Mass Armourstone (HMA)
-            {"HMA300-1000",    300,   1000},
-            {"HMA1000-3000",   1000,  3000},
-            {"HMA3000-6000",   3000,  6000},
-            {"HMA6000-10000",  6000,  10000},
-            {"HMA10000-15000", 10000, 15000}
+            {"HMA300-1000",    300.0,   1000.0,   650.0},
+            {"HMA1000-3000",   1000.0,  3000.0,   2000.0},
+            {"HMA3000-6000",   3000.0,  6000.0,   4500.0},
+            {"HMA6000-10000",  6000.0,  10000.0,  8000.0},
+            {"HMA10000-15000", 10000.0, 15000.0,  12500.0}
         };
 
         defaults = {
@@ -415,78 +424,203 @@ public:
             0.5,    // Nod
             27.48,  // Wc
             10.05,  // Ww
-            1       // Formula_ID
+            1,      // Formula_ID
+            true,   // use_standard_underlayer_grading
+            "AUTO"  // custom_underlayer_family
         };
+    }
+
+    static bool starts_with(const std::string& value, const std::string& prefix) {
+        return value.rfind(prefix, 0) == 0;
+    }
+
+    std::string grading_family(const std::string& grading_name) const {
+        if (starts_with(grading_name, "HMA")) return "HMA";
+        if (starts_with(grading_name, "LMA")) return "LMA";
+        if (starts_with(grading_name, "CP"))  return "CP";
+        return "UNKNOWN";
+    }
+
+    std::vector<GradingDef> get_family_gradings(const std::string& family) const {
+        std::vector<GradingDef> out;
+        for (const auto& gdef : standard_gradings) {
+            if (grading_family(gdef.name) == family) {
+                out.push_back(gdef);
+            }
+        }
+
+        std::sort(out.begin(), out.end(), [](const GradingDef& a, const GradingDef& b) {
+            return a.M50_kg < b.M50_kg;
+        });
+        return out;
+    }
+
+    std::string select_custom_family(double target_mass_kg) const {
+        double safe_mass = std::max(target_mass_kg, 1e-9);
+        double best_score = std::numeric_limits<double>::max();
+        std::string best_family = "LMA";
+
+        for (const auto& gdef : standard_gradings) {
+            const std::string family = grading_family(gdef.name);
+            if (family == "UNKNOWN") {
+                continue;
+            }
+
+            double score = std::abs(std::log(safe_mass) - std::log(std::max(gdef.M50_kg, 1e-9)));
+
+            // Mild engineering preference: when distances are very similar,
+            // favour the mass-based armourstone families over CP.
+            if (family == "CP") {
+                score += 0.08;
+            }
+
+            if (score < best_score) {
+                best_score = score;
+                best_family = family;
+            }
+        }
+
+        return best_family;
+    }
+
+    double interpolate_family_ratio(double target_mass_kg, const std::string& family, std::string& note) const {
+        std::vector<GradingDef> family_gradings = get_family_gradings(family);
+        if (family_gradings.empty()) {
+            note = "fallback ratio R=NUL/NLL = 3.0 (no family data)";
+            return 3.0;
+        }
+
+        std::vector<double> x;
+        std::vector<double> y;
+        x.reserve(family_gradings.size());
+        y.reserve(family_gradings.size());
+
+        for (const auto& gdef : family_gradings) {
+            x.push_back(std::log(std::max(gdef.M50_kg, 1e-9)));
+            y.push_back(std::log(std::max(gdef.NUL_kg / gdef.NLL_kg, 1.0 + 1e-9)));
+        }
+
+        double xt = std::log(std::max(target_mass_kg, 1e-9));
+        std::ostringstream oss;
+        oss << std::fixed << std::setprecision(3);
+
+        if (family_gradings.size() == 1) {
+            double ratio = family_gradings.front().NUL_kg / family_gradings.front().NLL_kg;
+            oss << family << " family single-point ratio used";
+            note = oss.str();
+            return ratio;
+        }
+
+        if (xt <= x.front()) {
+            double ratio = std::exp(y.front());
+            oss << family << " family ratio clamped to lower-end class " << family_gradings.front().name;
+            note = oss.str();
+            return ratio;
+        }
+
+        if (xt >= x.back()) {
+            double ratio = std::exp(y.back());
+            oss << family << " family ratio clamped to upper-end class " << family_gradings.back().name;
+            note = oss.str();
+            return ratio;
+        }
+
+        for (size_t i = 0; i + 1 < family_gradings.size(); ++i) {
+            if (xt >= x[i] && xt <= x[i + 1]) {
+                double t = (xt - x[i]) / (x[i + 1] - x[i]);
+                double log_ratio = y[i] + t * (y[i + 1] - y[i]);
+                double ratio = std::exp(log_ratio);
+                oss << family << " interpolated between "
+                    << family_gradings[i].name << " and " << family_gradings[i + 1].name;
+                note = oss.str();
+                return ratio;
+            }
+        }
+
+        double ratio = std::exp(y.back());
+        oss << family << " family ratio fallback to upper-end class " << family_gradings.back().name;
+        note = oss.str();
+        return ratio;
     }
 
     double calculate_L0(double Tm) {
         return (g * std::pow(Tm, 2)) / (2 * M_PI);
     }
 
-    UnderlayerResult calculate_underlayer_params(double W_armor) {
+    UnderlayerResult calculate_underlayer_params(double W_armor, const Inputs& params) {
         double target_weight = W_armor / 10.0;
         double target_mass_kg = (target_weight * 1000.0) / g;
-        
-        GradingDef selected_grading;
-        bool found = false;
-        
-        double final_M50 = 0;
-        double final_NLL = 0;
-        double final_NUL = 0;
 
-        // --- CONTAINMENT & TIGHTEST RANGE LOGIC ---
-        double min_range_width = std::numeric_limits<double>::max();
-
-        for (const auto& grading : standard_gradings) {
-            // Check containment: Target must be strictly inside nominal limits
-            if (target_mass_kg > grading.NLL_kg && target_mass_kg < grading.NUL_kg) {
-                
-                double current_range = grading.NUL_kg - grading.NLL_kg;
-                
-                // Update if this is the first match OR if this range is tighter (smaller)
-                if (current_range < min_range_width) {
-                    min_range_width = current_range;
-                    selected_grading = grading;
-                    final_NLL = grading.NLL_kg;
-                    final_NUL = grading.NUL_kg;
-                    final_M50 = 0.5 * (final_NLL + final_NUL);
-                    found = true;
-                }
-            }
-        }
-        
-        // Fallback if no grading strictly contains the target mass
-        if (!found && !standard_gradings.empty()) {
-            selected_grading = standard_gradings[0];
-            final_NLL = selected_grading.NLL_kg;
-            final_NUL = selected_grading.NUL_kg;
-            final_M50 = 0.5 * (final_NLL + final_NUL);
-        }
-
-        // --- CONTINUE WITH EXISTING LIMIT CALCULATIONS ---
-        double ELL = 0.7 * final_NLL;
-        double EUL = 1.5 * final_NUL;
-        double W_mean_kn = (final_M50 * g) / 1000.0;
-        
-        double Dn_rock = std::pow(W_mean_kn / W_rock_spec, 1.0/3.0);
-        double r2 = 2.0 * Dn_rock;
-        double f2 = 100.0 * 2.0 * 1.0 * (1.0 - P_rock) / std::pow(Dn_rock, 2);
-        
-        UnderlayerResult res;
-        res.grading_name = selected_grading.name;
+        UnderlayerResult res{};
         res.target_W = target_weight;
         res.target_M50_kg = target_mass_kg;
-        res.M50_kg = final_M50;
-        res.NLL_kg = final_NLL;
-        res.NUL_kg = final_NUL;
-        res.ELL_kg = ELL;
-        res.EUL_kg = EUL;
-        res.W_mean_kn = W_mean_kn;
-        res.Dn_rock = Dn_rock;
-        res.r2 = r2;
-        res.f2 = f2;
+        res.used_custom_interpolation = false;
+        res.custom_family = "";
+        res.custom_ratio_nul_nll = 0.0;
+        res.custom_ratio_note = "";
+
+        bool use_standard = params.use_standard_underlayer_grading;
+
+        if (use_standard) {
+            GradingDef selected_grading{};
+            bool found = false;
+            double min_range_width = std::numeric_limits<double>::max();
+
+            for (const auto& grading : standard_gradings) {
+                if (target_mass_kg > grading.NLL_kg && target_mass_kg < grading.NUL_kg) {
+                    double current_range = grading.NUL_kg - grading.NLL_kg;
+                    if (current_range < min_range_width) {
+                        min_range_width = current_range;
+                        selected_grading = grading;
+                        found = true;
+                    }
+                }
+            }
+
+            if (found) {
+                res.grading_name = selected_grading.name;
+                res.M50_kg = selected_grading.M50_kg;
+                res.NLL_kg = selected_grading.NLL_kg;
+                res.NUL_kg = selected_grading.NUL_kg;
+            }
+        }
+
+        if (!use_standard || res.NUL_kg <= res.NLL_kg) {
+            std::string family = params.custom_underlayer_family;
+            std::transform(family.begin(), family.end(), family.begin(),
+                           [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+
+            if (family != "HMA" && family != "LMA" && family != "CP") {
+                family = select_custom_family(target_mass_kg);
+            }
+
+            std::string ratio_note;
+            double ratio_nul_nll = interpolate_family_ratio(target_mass_kg, family, ratio_note);
+            ratio_nul_nll = std::max(ratio_nul_nll, 1.01);
+
+            double nll_kg = (2.0 * target_mass_kg) / (1.0 + ratio_nul_nll);
+            double nul_kg = ratio_nul_nll * nll_kg;
+
+            res.grading_name = "Custom Grading";
+            res.M50_kg = target_mass_kg;
+            res.NLL_kg = nll_kg;
+            res.NUL_kg = nul_kg;
+            res.used_custom_interpolation = true;
+            res.custom_family = family;
+            res.custom_ratio_nul_nll = ratio_nul_nll;
+            res.custom_ratio_note = ratio_note;
+        }
+
+        res.ELL_kg = 0.7 * res.NLL_kg;
+        res.EUL_kg = 1.5 * res.NUL_kg;
+        res.W_mean_kn = (res.M50_kg * g) / 1000.0;
+
+        double reference_weight_kn = res.used_custom_interpolation ? target_weight : res.W_mean_kn;
+        res.Dn_rock = std::pow(reference_weight_kn / W_rock_spec, 1.0 / 3.0);
+        res.r2 = 2.0 * res.Dn_rock;
+        res.f2 = 100.0 * 2.0 * 1.0 * (1.0 - P_rock) / std::pow(res.Dn_rock, 2);
         res.W_rock_spec = W_rock_spec;
-        
+
         return res;
     }
 	
@@ -535,7 +669,7 @@ public:
         double kd_trunk_equiv = (params.Wc * std::pow(params.Hs, 3)) / (W_trunk * std::pow(delta_trunk, 3) * slope);
 
         // 7. UNDERLAYER - TRUNK
-        UnderlayerResult ul_trunk = calculate_underlayer_params(W_trunk);
+        UnderlayerResult ul_trunk = calculate_underlayer_params(W_trunk, params);
 
         // 8. HEAD CALCULATION (FIXED RATIO 1.5)
         double kd_ratio = KD_RATIO_FIXED;
@@ -548,7 +682,7 @@ public:
         double packing_density_head = 100.0 * 2.0 * 1.1 * (1.0 - P_cubes) / std::pow(Dn, 2);
 
         // 9. UNDERLAYER - HEAD
-        UnderlayerResult ul_head = calculate_underlayer_params(W_head);
+        UnderlayerResult ul_head = calculate_underlayer_params(W_head, params);
 
         // 10. Armor Layer Details (Common)
         double r1 = 2.0 * 1.1 * Dn;
@@ -578,6 +712,7 @@ public:
         results.intermediate.delta = delta_trunk;
         results.intermediate.Ns_trunk = Ns_trunk;
         
+        results.final_trunk.Ns = Ns_trunk;
         results.final_trunk.Dn = Dn;
         results.final_trunk.W = W_trunk;
         results.final_trunk.Mass_tonnes = W_trunk / g;
@@ -627,6 +762,12 @@ struct LangPack {
     std::wstring nod_label;
     std::wstring wc_label;
     std::wstring formula_label;
+    std::wstring underlayer_standard_label;
+    std::wstring underlayer_family_label;
+    std::wstring family_auto;
+    std::wstring family_hma;
+    std::wstring family_lma;
+    std::wstring family_cp;
     std::wstring button_calculate;
 
     std::wstring report_title;
@@ -679,7 +820,8 @@ struct LangPack {
     std::wstring under_dn;
     std::wstring under_r2;
     std::wstring under_f2;
-
+    std::wstring under_custom_family;
+    std::wstring under_custom_ratio;
     std::wstring head_note;
     std::wstring head_ratio;
     std::wstring head_required_wc;
@@ -703,6 +845,12 @@ const LangPack& GetLangPack(Language lang) {
         L"Nod (Damage):",
         L"Wc Concrete (kN/m3):",
         L"Formula / Slope:",
+        L"Use EN 13383 standard underlayer grading",
+        L"Custom underlayer family:",
+        L"Automatic",
+        L"HMA",
+        L"LMA",
+        L"CP",
         L"Calculate Armor",
 
         L"TECHNICAL REPORT: BREAKWATER ARMOR & UNDERLAYER DESIGN",
@@ -755,6 +903,8 @@ const LangPack& GetLangPack(Language lang) {
         L"Nominal Dimension (Dn_rock)",
         L"Double Layer Thickness (r2)",
         L"Packing Density, f2 [rocks/100m2]",
+        L"Custom family basis",
+        L"Custom ratio R=NUL/NLL",
 
         L"*Maintains same Dn and slope as Trunk*",
         L"Stability Ratio (Kd_T/Kd_H)",
@@ -774,6 +924,12 @@ const LangPack& GetLangPack(Language lang) {
         L"Nod (Dano):",
         L"Wc do betão (kN/m3):",
         L"Fórmula / Talude:",
+        L"Usar classe padrão EN 13383 para a subcamada",
+        L"Família personalizada da subcamada:",
+        L"Automática",
+        L"HMA",
+        L"LMA",
+        L"CP",
         L"Calcular Manto",
 
         L"RELATÓRIO TÉCNICO: DIMENSIONAMENTO DO MANTO E DA SUBCAMADA DO QUEBRA-MAR",
@@ -826,6 +982,8 @@ const LangPack& GetLangPack(Language lang) {
         L"Diâmetro nominal (Dn_enrocam)",
         L"Espessura da camada dupla (r2)",
         L"Densidade, f2 [enrocam/100m2]",
+        L"Família personalizada de base",
+        L"Razão personalizada R=NUL/NLL",
 
         L"*Mantém o mesmo Dn e talude do tronco*",
         L"Razão de estabilidade (Kd_T/Kd_H)",
@@ -845,6 +1003,12 @@ const LangPack& GetLangPack(Language lang) {
         L"Nod (Endommagement) :",
         L"Wc béton (kN/m3) :",
         L"Formule / Talus :",
+        L"Utiliser la classe standard EN 13383 pour la sous-couche",
+        L"Famille personnalisée de sous-couche :",
+        L"Automatique",
+        L"HMA",
+        L"LMA",
+        L"CP",
         L"Calculer la carapace",
 
         L"RAPPORT TECHNIQUE : DIMENSIONNEMENT DE LA CARAPACE ET DE LA SOUS-COUCHE DU BRISE-LAMES",
@@ -897,6 +1061,8 @@ const LangPack& GetLangPack(Language lang) {
         L"Diamètre nominal (Dn_enroch)",
         L"Épaisseur de la double couche (r2)",
         L"Densité, f2 [enroch/100m2]",
+        L"Famille personnalisée de base",
+        L"Rapport personnalisé R=NUL/NLL",
 
         L"*Conserve le même Dn et le même talus que le tronc*",
         L"Rapport de stabilité (Kd_T/Kd_H)",
@@ -1113,6 +1279,10 @@ std::wstring format_report(const FullResults& results, Language lang) {
     field(t.under_dn, fmt(ut.Dn_rock, 3) + L" m");
     field(t.under_r2, fmt(ut.r2, 2) + L" m");
     field(t.under_f2, fmt(ut.f2, 2));
+    if (ut.used_custom_interpolation) {
+        field(t.under_custom_family, std::wstring(ut.custom_family.begin(), ut.custom_family.end()));
+        field(t.under_custom_ratio, fmt(ut.custom_ratio_nul_nll, 3));
+    }
     ss << std::wstring(80, L'-') << L"\n";
 
     ss << t.section_armor_head << L"\n"
@@ -1145,6 +1315,10 @@ std::wstring format_report(const FullResults& results, Language lang) {
     field(t.under_dn, fmt(uh.Dn_rock, 3) + L" m");
     field(t.under_r2, fmt(uh.r2, 2) + L" m");
     field(t.under_f2, fmt(uh.f2, 2));
+    if (uh.used_custom_interpolation) {
+        field(t.under_custom_family, std::wstring(uh.custom_family.begin(), uh.custom_family.end()));
+        field(t.under_custom_ratio, fmt(uh.custom_ratio_nul_nll, 3));
+    }
     ss << std::wstring(80, L'=') << L"\n";
 
     return ss.str();
@@ -1172,9 +1346,13 @@ void SaveReportToFile(const std::wstring& report_content) {
 #define IDC_BUTTON_COMPUTE 107
 #define IDC_OUTPUT 108
 #define IDC_COMBO_LANGUAGE 109
+#define IDC_CHK_STANDARD_UNDERLAYER 110
+#define IDC_COMBO_UNDERLAYER_FAMILY 111
 
 HWND hLabelLanguage, hLabelHs, hLabelTm, hLabelDur, hLabelNod, hLabelWc, hLabelFormula;
+HWND hLabelUnderlayerFamily;
 HWND hEditHs, hEditTm, hEditDur, hEditNod, hEditWc, hComboFormula, hComboLanguage, hButtonCompute, hOutput;
+HWND hChkStandardUnderlayer, hComboUnderlayerFamily;
 BreakwaterCalculator calculator;
 
 // Store fonts globally to delete them later
@@ -1195,6 +1373,31 @@ void PopulateFormulaCombo(Language lang) {
     SendMessageW(hComboFormula, CB_SETCURSEL, (WPARAM)sel, 0);
 }
 
+void PopulateUnderlayerFamilyCombo(Language lang) {
+    int sel = (int)SendMessageW(hComboUnderlayerFamily, CB_GETCURSEL, 0, 0);
+    if (sel < 0 || sel > 3) {
+        const std::string& family = calculator.defaults.custom_underlayer_family;
+        if (family == "HMA") sel = 1;
+        else if (family == "LMA") sel = 2;
+        else if (family == "CP") sel = 3;
+        else sel = 0;
+    }
+
+    const LangPack& t = GetLangPack(lang);
+    SendMessageW(hComboUnderlayerFamily, CB_RESETCONTENT, 0, 0);
+    SendMessageW(hComboUnderlayerFamily, CB_ADDSTRING, 0, (LPARAM)t.family_auto.c_str());
+    SendMessageW(hComboUnderlayerFamily, CB_ADDSTRING, 0, (LPARAM)t.family_hma.c_str());
+    SendMessageW(hComboUnderlayerFamily, CB_ADDSTRING, 0, (LPARAM)t.family_lma.c_str());
+    SendMessageW(hComboUnderlayerFamily, CB_ADDSTRING, 0, (LPARAM)t.family_cp.c_str());
+    SendMessageW(hComboUnderlayerFamily, CB_SETCURSEL, (WPARAM)sel, 0);
+}
+
+void UpdateUnderlayerFamilyControlsEnabled() {
+    BOOL useStandard = (IsDlgButtonChecked(GetParent(hChkStandardUnderlayer), IDC_CHK_STANDARD_UNDERLAYER) == BST_CHECKED);
+    EnableWindow(hLabelUnderlayerFamily, !useStandard);
+    EnableWindow(hComboUnderlayerFamily, !useStandard);
+}
+
 void ApplyLanguage(HWND hwnd) {
     const LangPack& t = GetLangPack(g_currentLanguage);
 
@@ -1206,10 +1409,14 @@ void ApplyLanguage(HWND hwnd) {
     SetWindowTextW(hLabelNod, t.nod_label.c_str());
     SetWindowTextW(hLabelWc, t.wc_label.c_str());
     SetWindowTextW(hLabelFormula, t.formula_label.c_str());
+    SetWindowTextW(hChkStandardUnderlayer, t.underlayer_standard_label.c_str());
+    SetWindowTextW(hLabelUnderlayerFamily, t.underlayer_family_label.c_str());
     SetWindowTextW(hButtonCompute, t.button_calculate.c_str());
 
     PopulateFormulaCombo(g_currentLanguage);
+    PopulateUnderlayerFamilyCombo(g_currentLanguage);
     SendMessageW(hComboLanguage, CB_SETCURSEL, (WPARAM)g_currentLanguage, 0);
+    UpdateUnderlayerFamilyControlsEnabled();
 
     if (g_hasLastResults) {
         std::wstring report = format_report(g_lastResults, g_currentLanguage);
@@ -1289,6 +1496,23 @@ void CreateControls(HWND hwnd) {
     SendMessageW(hComboFormula, WM_SETFONT, (WPARAM)hUIFont, TRUE);
 
     y += 45;
+    hChkStandardUnderlayer = CreateWindowW(
+        L"BUTTON", L"Use EN 13383 standard underlayer grading",
+        WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX,
+        10, y, 350, 25, hwnd, (HMENU)(INT_PTR)IDC_CHK_STANDARD_UNDERLAYER, NULL, NULL);
+    SendMessageW(hChkStandardUnderlayer, WM_SETFONT, (WPARAM)hUIFont, TRUE);
+    CheckDlgButton(hwnd, IDC_CHK_STANDARD_UNDERLAYER,
+                   calculator.defaults.use_standard_underlayer_grading ? BST_CHECKED : BST_UNCHECKED);
+
+    y += step;
+    hLabelUnderlayerFamily = CreateLabel(L"Custom underlayer family:", 10, y);
+    hComboUnderlayerFamily = CreateWindowW(
+        L"COMBOBOX", NULL,
+        WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_VSCROLL,
+        editX, y, 140, 200, hwnd, (HMENU)(INT_PTR)IDC_COMBO_UNDERLAYER_FAMILY, NULL, NULL);
+    SendMessageW(hComboUnderlayerFamily, WM_SETFONT, (WPARAM)hUIFont, TRUE);
+
+    y += 50;
     hButtonCompute = CreateWindowW(L"BUTTON", L"Calculate Armor",
         WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,
         10, y, 260, 40, hwnd, (HMENU)(INT_PTR)IDC_BUTTON_COMPUTE, NULL, NULL);
@@ -1321,6 +1545,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             break;
         }
 
+        if (LOWORD(wParam) == IDC_CHK_STANDARD_UNDERLAYER) {
+            UpdateUnderlayerFamilyControlsEnabled();
+            break;
+        }
+
         if (LOWORD(wParam) == IDC_BUTTON_COMPUTE) {
             const LangPack& t = GetLangPack(g_currentLanguage);
 
@@ -1338,6 +1567,20 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 selIndex = calculator.defaults.Formula_ID - 1;
             }
             inputs.Formula_ID = selIndex + 1;
+
+            inputs.use_standard_underlayer_grading =
+                (IsDlgButtonChecked(hwnd, IDC_CHK_STANDARD_UNDERLAYER) == BST_CHECKED);
+
+            int familySel = (int)SendMessageW(hComboUnderlayerFamily, CB_GETCURSEL, 0, 0);
+            switch (familySel) {
+                case 1: inputs.custom_underlayer_family = "HMA"; break;
+                case 2: inputs.custom_underlayer_family = "LMA"; break;
+                case 3: inputs.custom_underlayer_family = "CP";  break;
+                case 0:
+                default:
+                    inputs.custom_underlayer_family = "AUTO";
+                    break;
+            }
 
             if (inputs.Hs <= 0 || inputs.Tm <= 0 || inputs.Number_of_Waves <= 0 || inputs.Wc <= 0) {
                 MessageBoxW(hwnd, t.input_error_positive.c_str(), t.input_error_title.c_str(), MB_ICONERROR | MB_OK);

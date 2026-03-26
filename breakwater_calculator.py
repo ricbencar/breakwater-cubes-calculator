@@ -1,687 +1,705 @@
-# ======================================================================================
-# PROGRAM DESCRIPTION & METHODOLOGY
-# ======================================================================================
-#
-# 1. PURPOSE:
-#    This software performs preliminary hydraulic sizing of rubble-mound breakwater
-#    armor made with artificial concrete units and the associated rock underlayers.
-#    The implemented armor-unit families are:
-#    - Simple Cubes
-#    - Antifer Blocks
-#
-#    The calculator dimensions two structural zones:
-#    - The Trunk (main longitudinal section)
-#    - The Head (roundhead / exposed end section)
-#
-#    The implemented design philosophy is iso-geometric but not iso-weight:
-#    the Head keeps the same nominal unit size and geometry as the Trunk, while
-#    the required concrete specific weight is increased to satisfy the adopted
-#    head-stability transfer rule.
-#
-# 2. METHODOLOGY:
-#    The calculator uses empirical hydraulic-stability formulae and an internal
-#    EN 13383 rock-grading database:
-#
-#    - Simple Cubes:
-#      Van der Meer (1988a), with embedded coefficient sets for slopes 2.0:1
-#      and 1.5:1.
-#
-#    - Antifer Blocks:
-#      Chegini-Aghtouman (2006), with embedded coefficient sets for slopes
-#      2.0:1 and 1.5:1.
-#
-#    - Underlayers:
-#      Automatic selection from an internal EN 13383 grading table using a
-#      target underlayer weight equal to one tenth of armor-unit weight.
-#
-# 3. DESIGN LOGIC & COMPUTATIONAL STRATEGY:
-#
-#    a. Input philosophy:
-#       The exposed hydraulic storm input is the number of waves, Nz.
-#       Storm duration is not entered directly; it is calculated internally as:
-#
-#           Storm_Duration_hr = Nz * Tm / 3600
-#
-#    b. Trunk stability calculation:
-#       For the selected formula ID, the program evaluates the stability number:
-#
-#           Ns = (k1 * (Nod^k2 / Nz^k3) + k4) * s0m^(-k5)
-#
-#       where:
-#       - s0m = Hs / L0
-#       - L0  = g * Tm^2 / (2 * pi)
-#
-#       The trunk armor nominal diameter is then obtained from:
-#
-#           Dn = Hs / (Delta_trunk * Ns)
-#
-#       with:
-#
-#           Delta_trunk = (Wc_trunk / Ww) - 1
-#
-#       The trunk armor-unit weight is:
-#
-#           W_trunk = Wc_trunk * Dn^3
-#
-#       The equivalent Hudson stability coefficient for the trunk is also
-#       calculated for reference.
-#
-#    c. Head design strategy:
-#       The Head is not resized by increasing nominal diameter Dn.
-#       Instead, the program keeps the same Dn and the same slope as the Trunk,
-#       and transfers the design to the Head through a fixed Hudson-coefficient
-#       ratio:
-#
-#           Kd_trunk / Kd_head = 1.5
-#
-#       Assuming fixed geometry, the required relative-density transfer becomes:
-#
-#           Delta_head = Delta_trunk * (1.5)^(1/3)
-#
-#       and the required head concrete specific weight is:
-#
-#           Wc_head = Ww * (Delta_head + 1)
-#
-#       Because unit volume is kept constant, head unit weight increases only
-#       due to the higher concrete specific weight:
-#
-#           W_head = W_trunk * (Wc_head / Wc_trunk)
-#
-#       Therefore:
-#       - same molds may be used at Trunk and Head;
-#       - same nominal diameter is preserved;
-#       - same geometric dimensions are preserved;
-#       - Head units are heavier because density is increased.
-#
-#    d. Underlayer selection:
-#       The target underlayer weight is taken as:
-#
-#           W_target = W_armor / 10
-#
-#       This target is converted to mass and matched against the internal
-#       EN 13383 nominal grading limits. The adopted grading is the one that
-#       strictly contains the target mass and, if more than one grading matches,
-#       the tightest grading range is selected. If no grading strictly contains
-#       the target mass, the code falls back to the first grading in the
-#       database.
-#
-# 4. DEFAULTS, CONSTANTS, AND CURRENT CODE SETTINGS:
-#
-#    a. Default design inputs currently used in the code:
-#       - Hs         = 11.0 m
-#       - Tm         = 11.9 s
-#       - Nz         = 3000
-#       - Nod        = 0.5
-#       - Wc_trunk   = 27.48 kN/m3
-#       - Ww         = 10.05 kN/m3
-#       - Formula_ID = 1
-#
-#       Default Formula_ID = 1 corresponds to:
-#       Van der Meer (1988a) - Simple Cubes (Slope 2.0:1)
-#
-#    b. Physical and layer constants currently used in the code:
-#       - g            = 9.80665 m/s2
-#       - W_rock_spec  = 26.5 kN/m3
-#       - P_cubes      = 0.40
-#       - P_rock       = 0.25
-#       - Kd ratio     = 1.5
-#
-#    c. Formula sets currently embedded in the code:
-#       1. Van der Meer (1988a) - Simple Cubes (Slope 2.0:1)
-#       2. Van der Meer (1988a) - Simple Cubes (Slope 1.5:1)
-#       3. Chegini-Aghtouman (2006) - Antifer (Slope 2.0:1)
-#       4. Chegini-Aghtouman (2006) - Antifer (Slope 1.5:1)
-#
-# 5. OUTPUTS PRODUCED:
-#    The calculator reports, for both Trunk and Head:
-#    - Stability number
-#    - Nominal diameter
-#    - Armor-unit weight and mass
-#    - Equivalent Kd value
-#    - Armor-layer thickness
-#    - Packing density
-#    - Underlayer grading and derived rock parameters
-#
-#    For Cubes, displayed volume is reported as:
-#
-#        V = Dn^3
-#
-#    For Antifer units, displayed volume is reported using the geometric
-#    shape factor:
-#
-#        V = 1.0247 * H^3
-#
-# 6. TECHNICAL BIBLIOGRAPHY & REFERENCES:
-#
-#    1. Van der Meer, J.W. (1988). "Rock Slopes and Gravel Beaches Under Wave Attack."
-#       Doctoral Thesis, Delft University of Technology.
-#
-#    2. Van der Meer, J.W. (1988). "Stability of Cubes, Tetrapods and Accropode."
-#       Proceedings of the Conference Breakwaters '88, Eastbourne, Thomas Telford.
-#
-#    3. Chegini, V., & Aghtouman, P. (2006). "An Investigation on the Stability of
-#       Rubble Mound Breakwaters with Armour Layers of Antifer Cubes."
-#
-#    4. USACE (2006). "Coastal Engineering Manual (CEM)", Chapter VI-5.
-#
-#    5. CEN (2002). "EN 13383-1: Armourstone - Part 1: Specification."
-#
-# ======================================================================================
-
 import math
 import sys
-import os
+from dataclasses import dataclass, field
+from typing import Dict, List
+
+
+@dataclass
+class FormulaParams:
+    name: str
+    type: str
+    slope_ratio: float
+    k1: float
+    k2: float
+    k3: float
+    k4: float
+    k5: float
+
+
+@dataclass
+class GradingDef:
+    name: str
+    NLL_kg: float
+    NUL_kg: float
+
+
+@dataclass
+class Dimensions:
+    H: float = 0.0
+    A: float = 0.0
+    B: float = 0.0
+
+
+@dataclass
+class UnderlayerResult:
+    grading_name: str = ""
+    target_W: float = 0.0
+    target_M50_kg: float = 0.0
+    M50_kg: float = 0.0
+    ELL_kg: float = 0.0
+    EUL_kg: float = 0.0
+    NLL_kg: float = 0.0
+    NUL_kg: float = 0.0
+    W_mean_kn: float = 0.0
+    Dn_rock: float = 0.0
+    r2: float = 0.0
+    f2: float = 0.0
+    W_rock_spec: float = 0.0
+    used_custom_interpolation: bool = False
+    custom_family: str = ""
+    custom_ratio_nul_nll: float = 0.0
+    custom_ratio_note: str = ""
+
+
+@dataclass
+class ArmorResult:
+    Ns: float = 0.0
+    Dn: float = 0.0
+    W: float = 0.0
+    Mass_tonnes: float = 0.0
+    Kd: float = 0.0
+    r1: float = 0.0
+    packing_density: float = 0.0
+    dims: Dimensions = field(default_factory=Dimensions)
+    Kd_Ratio: float = 0.0
+    Delta_Required: float = 0.0
+    Wc_Required: float = 0.0
+
+
+@dataclass
+class Intermediates:
+    L0: float = 0.0
+    k0: float = 0.0
+    s0m: float = 0.0
+    sm: float = 0.0
+    Nz: float = 0.0
+    Storm_Duration_hr: float = 0.0
+    delta: float = 0.0
+    Ns_trunk: float = 0.0
+
+
+@dataclass
+class Inputs:
+    Hs: float
+    Tm: float
+    Number_of_Waves: float
+    Nod: float
+    Wc: float
+    Ww: float
+    Formula_ID: int
+    use_en13383: bool
+    custom_family: str
+
+
+@dataclass
+class FullResults:
+    inputs: Inputs
+    coefficients: FormulaParams
+    intermediate: Intermediates
+    final_trunk: ArmorResult
+    underlayer_trunk: UnderlayerResult
+    final_head: ArmorResult
+    underlayer_head: UnderlayerResult
+    P_rock: float
+    P_cubes: float
+
 
 class BreakwaterCalculator:
-    """
-    Coastal Engineering Calculator for armor block sizing.
-    
-    Structure:
-    1. Trunk Armor (Van der Meer / Chegini-Aghtouman)
-    2. Trunk Underlayer (Selected from EN 13383 Standard Grades)
-    3. Head Armor (High Density, Fixed Kd Ratio 1.5)
-    4. Head Underlayer (Selected from EN 13383 Standard Grades)
-    """
-
-    def __init__(self):
-        # ----------------------------------------------------------------------
-        # PHYSICAL CONSTANTS
-        # ----------------------------------------------------------------------
-        self.g = 9.80665  # Acceleration due to gravity (m/s^2)
-        self.W_rock_spec = 26.5 # Standard Specific weight for underlayer rock (kN/m3) (Basalt/Granite)
-        
-        # ----------------------------------------------------------------------
-        # LAYER CHARACTERISTICS
-        # ----------------------------------------------------------------------
-        # Porosity (P) is the percentage of void space in the armor layer.
-        self.P_cubes = 0.40  # Porosity of armor layers (Standard for double-layer Cubes)
-        self.P_rock = 0.25   # Porosity of rock underlayers (Standard approximation)
-        
-        # ----------------------------------------------------------------------
-        # HEAD TO TRUNK TRANSFER RATIO
-        # ----------------------------------------------------------------------
-        # The head of a breakwater experiences higher hydraulic loads (3D effects).
-        # We define a fixed ratio between the stability coefficient (Kd) of the Trunk vs Head.
-        # Ratio = Kd_trunk / Kd_head = 1.5
-        # This implies the Head needs to be ~1.5x more stable than the Trunk.
+    def __init__(self) -> None:
+        self.g = 9.80665
+        self.W_rock_spec = 26.5
+        self.P_cubes = 0.40
+        self.P_rock = 0.25
         self.KD_RATIO_FIXED = 1.5
 
-        # ----------------------------------------------------------------------
-        # FORMULA DATABASE
-        # ----------------------------------------------------------------------
-        # These coefficients (k1-k5) correspond to the empirical power-law formulas:
-        # Ns = (k1 * (Nod^k2 / Nz^k3) + k4) * s0m^-k5
-        
-        self.formulas = {
-            1: {
-                "name": "Van der Meer (1988a) - Simple Cubes (Slope 2.0:1)",
-                "type": "Cubes", "slope_ratio": 2.0,
-                "k1": 7.374304189198, "k2": 0.4, "k3": 0.3, "k4": 1.100642416298, "k5": 0.1
-            },
-            2: {
-                "name": "Van Der Meer (1988a) - Cubes (Slope 1.5:1)",
-                "type": "Cubes", "slope_ratio": 1.5,
-                "k1": 6.7, "k2": 0.4, "k3": 0.3, "k4": 1.0, "k5": 0.1
-            },
-            3: {
-                "name": "Chegini-Aghtouman (2006) - Antifer (Slope 2:1)",
-                "type": "Antifer", "slope_ratio": 2.0,
-                "k1": 6.138, "k2": 0.443, "k3": 0.276, "k4": 1.164, "k5": 0.07
-            },
-            4: {
-                "name": "Chegini-Aghtouman (2006) - Antifer (Slope 1.5:1)",
-                "type": "Antifer", "slope_ratio": 1.5,
-                "k1": 6.951, "k2": 0.443, "k3": 0.291, "k4": 1.082, "k5": 0.082
-            }
+        self.formulas: Dict[int, FormulaParams] = {
+            1: FormulaParams("Van der Meer (1988a) - Simple Cubes (Slope 2.0:1)", "Cubes", 2.0, 7.374304189198, 0.4, 0.3, 1.100642416298, 0.1),
+            2: FormulaParams("Van der Meer (1988a) - Simple Cubes (Slope 1.5:1)", "Cubes", 1.5, 6.7, 0.4, 0.3, 1.0, 0.1),
+            3: FormulaParams("Chegini-Aghtouman (2006) - Antifer (Slope 2.0:1)", "Antifer", 2.0, 6.138, 0.443, 0.276, 1.164, 0.07),
+            4: FormulaParams("Chegini-Aghtouman (2006) - Antifer (Slope 1.5:1)", "Antifer", 1.5, 6.951, 0.443, 0.291, 1.082, 0.082),
         }
 
-        # ----------------------------------------------------------------------
-        # ROCK GRADING DATABASE (EN 13383)
-        # ----------------------------------------------------------------------
-        # Mass ranges converted to weight (kN) dynamically during calculation.
-        # These represent standard commercial availability of rock.
-        self.standard_gradings = [
-            # Coarse / Light Gradings
-            {"name": "CP32/90",        "NLL_kg": 0.868,  "NUL_kg": 19.319},
-            {"name": "CP45/125",       "NLL_kg": 2.415,  "NUL_kg": 51.758},
-            {"name": "CP63/180",       "NLL_kg": 6.626,  "NUL_kg": 154.548},
-            {"name": "CP90/250",       "NLL_kg": 19.319, "NUL_kg": 414.063},
-            {"name": "CP45/180",       "NLL_kg": 2.415,  "NUL_kg": 154.548},
-            {"name": "CP90/180",       "NLL_kg": 19.319, "NUL_kg": 154.548},
-            # Light Mass Armourstone (LMA)
-            {"name": "LMA5-40",        "NLL_kg": 5,      "NUL_kg": 40},
-            {"name": "LMA10-60",       "NLL_kg": 10,     "NUL_kg": 60},
-            {"name": "LMA15-120",      "NLL_kg": 15,     "NUL_kg": 120},
-            {"name": "LMA40-200",      "NLL_kg": 40,     "NUL_kg": 200},
-            {"name": "LMA60-300",      "NLL_kg": 60,     "NUL_kg": 300},
-            {"name": "LMA15-300",      "NLL_kg": 15,     "NUL_kg": 300},
-            # Heavy Mass Armourstone (HMA)
-            {"name": "HMA300-1000",    "NLL_kg": 300,    "NUL_kg": 1000},
-            {"name": "HMA1000-3000",   "NLL_kg": 1000,   "NUL_kg": 3000},
-            {"name": "HMA3000-6000",   "NLL_kg": 3000,   "NUL_kg": 6000},
-            {"name": "HMA6000-10000",  "NLL_kg": 6000,   "NUL_kg": 10000},
-            {"name": "HMA10000-15000", "NLL_kg": 10000,  "NUL_kg": 15000},
+        self.standard_gradings: List[GradingDef] = [
+            GradingDef("CP32/90", 0.868, 19.319),
+            GradingDef("CP45/125", 2.415, 51.758),
+            GradingDef("CP63/180", 6.626, 154.548),
+            GradingDef("CP90/250", 19.319, 414.063),
+            GradingDef("CP45/180", 2.415, 154.548),
+            GradingDef("CP90/180", 19.319, 154.548),
+            GradingDef("LMA5-40", 5.0, 40.0),
+            GradingDef("LMA10-60", 10.0, 60.0),
+            GradingDef("LMA15-120", 15.0, 120.0),
+            GradingDef("LMA40-200", 40.0, 200.0),
+            GradingDef("LMA60-300", 60.0, 300.0),
+            GradingDef("LMA15-300", 15.0, 300.0),
+            GradingDef("HMA300-1000", 300.0, 1000.0),
+            GradingDef("HMA1000-3000", 1000.0, 3000.0),
+            GradingDef("HMA3000-6000", 3000.0, 6000.0),
+            GradingDef("HMA6000-10000", 6000.0, 10000.0),
+            GradingDef("HMA10000-15000", 10000.0, 15000.0),
         ]
-		
-        # ----------------------------------------------------------------------
-        # DEFAULT INPUTS
-        # ----------------------------------------------------------------------
-        self.defaults = {
-            "Hs": 11.0,                # Significant Wave Height (m)
-            "Tm": 11.9,                # Mean Wave Period (s)
-            "Nz": 3000.0,              # Number of waves in the design storm
-            "Nod": 0.5,                # Damage Number (Nod=0 to 1 implies no damage/start of damage)
-            "Wc": 27.48,               # Specific weight of concrete (kN/m3)
-            "Ww": 10.05,               # Specific weight of seawater (kN/m3)
-            "Formula_ID": 1            # Default is now VdM 2.0 (ID 1)
-        }
 
-    def calculate_L0(self, Tm):
-        """Calculates Deepwater Wavelength L0 = g * Tm^2 / (2 * pi)"""
-        return (self.g * Tm**2) / (2 * math.pi)
+        self.defaults = Inputs(
+            11.0,
+            11.9,
+            3000.0,
+            0.5,
+            27.48,
+            10.05,
+            1,
+            True,
+            "AUTO",
+        )
 
-    def calculate_underlayer_params(self, W_armor):
-        """
-        Calculates underlayer parameters.
-        Logic: Target rock is 1/10th the weight of armor. Finds the EN 13383 grading
-        that strictly contains the target mass, breaking ties with the tightest range.
-        """
+    def calculate_L0(self, Tm: float) -> float:
+        return (self.g * (Tm ** 2)) / (2.0 * math.pi)
+
+    def get_formula_display_name(self, formula_id: int) -> str:
+        if formula_id == 1:
+            return "Van der Meer (1988a) - Simple Cubes (Slope 2.0:1)"
+        if formula_id == 2:
+            return "Van der Meer (1988a) - Simple Cubes (Slope 1.5:1)"
+        if formula_id == 3:
+            return "Chegini-Aghtouman (2006) - Antifer (Slope 2.0:1)"
+        if formula_id == 4:
+            return "Chegini-Aghtouman (2006) - Antifer (Slope 1.5:1)"
+        return "Unknown formula"
+
+    @staticmethod
+    def starts_with(value: str, prefix: str) -> bool:
+        return value.startswith(prefix)
+
+    def grading_family(self, grading_name: str) -> str:
+        if self.starts_with(grading_name, "HMA"):
+            return "HMA"
+        if self.starts_with(grading_name, "LMA"):
+            return "LMA"
+        if self.starts_with(grading_name, "CP"):
+            return "CP"
+        return "UNKNOWN"
+
+    def get_family_gradings(self, family: str) -> List[GradingDef]:
+        out = [gdef for gdef in self.standard_gradings if self.grading_family(gdef.name) == family]
+        out.sort(key=lambda gdef: 0.5 * (gdef.NLL_kg + gdef.NUL_kg))
+        return out
+
+    def select_custom_family(self, target_mass: float) -> str:
+        safe_mass = max(target_mass, 1e-9)
+        best_score = float("inf")
+        best_family = "LMA"
+
+        for gdef in self.standard_gradings:
+            fam = self.grading_family(gdef.name)
+            if fam == "UNKNOWN":
+                continue
+
+            m50 = 0.5 * (gdef.NLL_kg + gdef.NUL_kg)
+            score = abs(math.log(safe_mass) - math.log(max(m50, 1e-9)))
+            if fam == "CP":
+                score += 0.08
+
+            if score < best_score:
+                best_score = score
+                best_family = fam
+
+        return best_family
+
+    def interpolate_family_ratio(self, target_mass: float, family: str) -> tuple[float, str]:
+        family_gradings = self.get_family_gradings(family)
+        if not family_gradings:
+            return 3.0, "fallback ratio R=NUL/NLL = 3.0 (no family data)"
+
+        x: List[float] = []
+        y: List[float] = []
+        for gdef in family_gradings:
+            m50 = 0.5 * (gdef.NLL_kg + gdef.NUL_kg)
+            x.append(math.log(max(m50, 1e-9)))
+            y.append(math.log(max(gdef.NUL_kg / gdef.NLL_kg, 1.0 + 1e-9)))
+
+        xt = math.log(max(target_mass, 1e-9))
+
+        if len(family_gradings) == 1:
+            ratio = family_gradings[0].NUL_kg / family_gradings[0].NLL_kg
+            return ratio, f"{family} family single-point ratio used"
+
+        if xt <= x[0]:
+            ratio = math.exp(y[0])
+            return ratio, f"{family} family ratio clamped to lower-end class {family_gradings[0].name}"
+
+        if xt >= x[-1]:
+            ratio = math.exp(y[-1])
+            return ratio, f"{family} family ratio clamped to upper-end class {family_gradings[-1].name}"
+
+        for i in range(len(family_gradings) - 1):
+            if xt >= x[i] and xt <= x[i + 1]:
+                t = (xt - x[i]) / (x[i + 1] - x[i])
+                log_ratio = y[i] + t * (y[i + 1] - y[i])
+                ratio = math.exp(log_ratio)
+                note = (
+                    f"{family} family ratio interpolated between "
+                    f"{family_gradings[i].name} and {family_gradings[i + 1].name}"
+                )
+                return ratio, note
+
+        ratio = math.exp(y[-1])
+        return ratio, f"{family} family ratio fallback to upper-end class {family_gradings[-1].name}"
+
+    def calculate_underlayer_params(self, W_armor: float, use_en13383: bool, requested_custom_family: str) -> UnderlayerResult:
         target_weight = W_armor / 10.0
         target_mass_kg = (target_weight * 1000.0) / self.g
-        
-        selected_grading = None
-        min_range_width = float('inf')
-        
-        # --- CONTAINMENT & TIGHTEST RANGE LOGIC ---
-        for grading in self.standard_gradings:
-            # Check containment: Target must be strictly inside nominal limits
-            if grading["NLL_kg"] < target_mass_kg < grading["NUL_kg"]:
-                current_range = grading["NUL_kg"] - grading["NLL_kg"]
-                
-                # Update if this is the first match OR if this range is tighter (smaller)
-                if current_range < min_range_width:
-                    min_range_width = current_range
-                    selected_grading = grading
-                    
-        # Fallback if no grading strictly contains the target mass
-        if not selected_grading and self.standard_gradings:
-            selected_grading = self.standard_gradings[0]
 
-        final_NLL = selected_grading["NLL_kg"]
-        final_NUL = selected_grading["NUL_kg"]
-        final_M50 = 0.5 * (final_NLL + final_NUL)
-        
-        # --- EN 13383 LIMIT CALCULATIONS ---
-        ELL = 0.7 * final_NLL
-        EUL = 1.5 * final_NUL
-        W_mean_kn = (final_M50 * self.g) / 1000.0
-        
-        Dn_rock = (W_mean_kn / self.W_rock_spec) ** (1/3.0)
-        r2 = 2.0 * Dn_rock
-        f2 = 100.0 * 2.0 * 1.0 * (1.0 - self.P_rock) / (Dn_rock**2)
-        
-        return {
-            "grading_name": selected_grading["name"],
-            "target_W": target_weight,
-            "target_M50_kg": target_mass_kg,
-            "M50_kg": final_M50,
-            "NLL_kg": final_NLL,
-            "NUL_kg": final_NUL,
-            "ELL_kg": ELL,
-            "EUL_kg": EUL,
-            "W_mean_kn": W_mean_kn, 
-            "Dn_rock": Dn_rock, 
-            "r2": r2, 
-            "f2": f2,
-            "W_rock_spec": self.W_rock_spec
-        }
+        res = UnderlayerResult()
+        res.target_W = target_weight
+        res.target_M50_kg = target_mass_kg
+        res.used_custom_interpolation = False
+        res.custom_family = ""
+        res.custom_ratio_nul_nll = 0.0
+        res.custom_ratio_note = ""
 
-    # --------------------------------------------------------------------------
-    # CORE CALCULATION METHOD
-    # --------------------------------------------------------------------------
-    def solve(self, formula_id, user_inputs=None):
-        # 1. Load Parameters (Merge defaults with any user overrides)
-        params = self.defaults.copy()
-        if user_inputs:
-            params.update(user_inputs)
-        
-        # 2. Load Coefficients from the Formula Database
+        if use_en13383:
+            selected_grading: GradingDef | None = None
+            found = False
+            min_range_width = float("inf")
+
+            for grading in self.standard_gradings:
+                if target_mass_kg > grading.NLL_kg and target_mass_kg < grading.NUL_kg:
+                    current_range = grading.NUL_kg - grading.NLL_kg
+                    if current_range < min_range_width:
+                        min_range_width = current_range
+                        selected_grading = grading
+                        found = True
+
+            if found and selected_grading is not None:
+                res.grading_name = selected_grading.name
+                res.M50_kg = 0.5 * (selected_grading.NLL_kg + selected_grading.NUL_kg)
+                res.NLL_kg = selected_grading.NLL_kg
+                res.NUL_kg = selected_grading.NUL_kg
+
+        if (not use_en13383) or (res.NUL_kg <= res.NLL_kg):
+            family = requested_custom_family.upper()
+            if family not in {"HMA", "LMA", "CP"}:
+                family = self.select_custom_family(target_mass_kg)
+
+            ratio_nul_nll, ratio_note = self.interpolate_family_ratio(target_mass_kg, family)
+            ratio_nul_nll = max(ratio_nul_nll, 1.01)
+
+            nll_kg = (2.0 * target_mass_kg) / (1.0 + ratio_nul_nll)
+            nul_kg = ratio_nul_nll * nll_kg
+
+            res.grading_name = "Custom Grading"
+            res.M50_kg = target_mass_kg
+            res.NLL_kg = nll_kg
+            res.NUL_kg = nul_kg
+            res.used_custom_interpolation = True
+            res.custom_family = family
+            res.custom_ratio_nul_nll = ratio_nul_nll
+            res.custom_ratio_note = ratio_note
+
+        res.ELL_kg = 0.7 * res.NLL_kg
+        res.EUL_kg = 1.5 * res.NUL_kg
+        res.W_mean_kn = (res.M50_kg * self.g) / 1000.0
+
+        reference_weight_kn = target_weight if res.used_custom_interpolation else res.W_mean_kn
+        res.Dn_rock = (reference_weight_kn / self.W_rock_spec) ** (1.0 / 3.0)
+        res.r2 = 2.0 * res.Dn_rock
+        res.f2 = 100.0 * 2.0 * 1.0 * (1.0 - self.P_rock) / (res.Dn_rock ** 2)
+        res.W_rock_spec = self.W_rock_spec
+        return res
+
+    def solve(self, formula_id: int, params: Inputs) -> FullResults:
         if formula_id not in self.formulas:
-            raise ValueError(f"Invalid Formula ID: {formula_id}")
-        
+            raise RuntimeError("Invalid Formula ID")
+
         coeffs = self.formulas[formula_id]
-        k1, k2, k3, k4, k5 = coeffs['k1'], coeffs['k2'], coeffs['k3'], coeffs['k4'], coeffs['k5']
+        k1 = coeffs.k1
+        k2 = coeffs.k2
+        k3 = coeffs.k3
+        k4 = coeffs.k4
+        k5 = coeffs.k5
 
-        # 3. Preliminary Hydraulic Calculations
-        # Calculate deep water wavelength and wave steepness (s0m)
-        L0 = self.calculate_L0(params['Tm'])
-        k0 = (2 * math.pi) / L0
-        s0m = params['Hs'] / L0
-        sm = s0m 
+        L0 = self.calculate_L0(params.Tm)
+        k0 = (2.0 * math.pi) / L0
+        s0m = params.Hs / L0
+        sm = s0m
 
-        # Calculate storm duration from the number of waves
-        Nz = params['Nz']
-        storm_duration_hr = (Nz * params['Tm']) / 3600.0
-        
-        # Calculate Relative Density Delta = (Rho_concrete / Rho_water) - 1
-        delta_trunk = (params['Wc'] / params['Ww']) - 1
+        Nz = params.Number_of_Waves
+        storm_duration_hr = (Nz * params.Tm) / 3600.0
+        delta_trunk = (params.Wc / params.Ww) - 1.0
 
-        # 4. Algorithmic Core (Chegini-Aghtouman / Van der Meer) - TRUNK
-        # This calculates the Stability Number (Ns)
-        
-        # Term 1: Damage / number-of-waves relationship
-        term_damage = params['Nod'] ** k2
+        term_damage = params.Nod ** k2
         term_waves = Nz ** k3
         damage_wave_ratio = term_damage / term_waves
-        
-        # Combine terms based on power-law formula
         scaled_term = k1 * damage_wave_ratio
         inv_f = scaled_term + k4
-
-        # Wave steepness influence
         steepness_factor = s0m ** (-k5)
         Ns_trunk = inv_f * steepness_factor
 
-        # 5. Block Sizing (Armor) - TRUNK
-        # Main Stability Equation: Dn = Hs / (Delta * Ns)
-        Dn = params['Hs'] / (delta_trunk * Ns_trunk)
-        
-        # Weight = Specific_Weight * Volume (Dn^3)
-        W_trunk = params['Wc'] * (Dn ** 3)
-        
-        # --- PACKING DENSITY CALCULATION (TRUNK) ---
-        # Formula: 100 * Layers(2) * Coeff(1) * (1 - Porosity) / Dn^2
-        packing_density_trunk = 100.0 * 2.0 * 1.1 * (1.0 - self.P_cubes) / (Dn**2)
+        Dn = params.Hs / (delta_trunk * Ns_trunk)
+        W_trunk = params.Wc * (Dn ** 3)
+        packing_density_trunk = 100.0 * 2.0 * 1.1 * (1.0 - self.P_cubes) / (Dn ** 2)
 
-        # 6. Hudson Comparative Calculation (Kd Trunk)
-        # Calculates the equivalent Hudson Stability Coefficient (Kd) for reference.
-        slope = coeffs['slope_ratio']
-        kd_trunk_equiv = (params['Wc'] * (params['Hs']**3)) / (W_trunk * (delta_trunk**3) * slope)
+        slope = coeffs.slope_ratio
+        kd_trunk_equiv = (params.Wc * (params.Hs ** 3)) / (W_trunk * (delta_trunk ** 3) * slope)
 
-        # 7. UNDERLAYER - TRUNK
-        # Independently calculated based on Trunk Armor Weight
-        ul_trunk = self.calculate_underlayer_params(W_trunk)
+        ul_trunk = self.calculate_underlayer_params(W_trunk, params.use_en13383, params.custom_family)
 
-        # 8. HEAD CALCULATION (FIXED RATIO 1.5)
-        # -------------------------------------------------------------
-        # STRATEGY: ISO-GEOMETRIC HIGH DENSITY HEAD
-        # Instead of increasing the block size (Dn) for the head, we keep
-        # the size constant to match the Trunk cube size.
-        # To achieve stability, we increase the density of the concrete.
-        # -------------------------------------------------------------
-        
-        # Logic: Kd_trunk / Kd_head = 1.5
         kd_ratio = self.KD_RATIO_FIXED
         kd_head_derived = kd_trunk_equiv / kd_ratio
-        
-        # Calculate Delta Required for Head (to keep Dn same as trunk)
-        # From Hudson: Kd ~ Delta^3. Therefore Delta_head = Delta_trunk * (Ratio)^(1/3)
-        delta_head = delta_trunk * (kd_ratio**(1/3.0))
-        
-        # Convert required Delta back to Concrete Specific Weight (Wc)
-        Wc_head = params['Ww'] * (delta_head + 1)
-        
-        # Head Weight: W_head = W_trunk * (Wc_head / Wc_trunk)
-        # Note: W_head is usually > W_trunk due to higher density required
-        W_head = W_trunk * (Wc_head / params['Wc'])
+        delta_head = delta_trunk * (kd_ratio ** (1.0 / 3.0))
+        Wc_head = params.Ww * (delta_head + 1.0)
+        W_head = W_trunk * (Wc_head / params.Wc)
 
-        # Calculate Stability Number for Head
-        Ns_head = params['Hs'] / (delta_head * Dn)
-        
-        # --- PACKING DENSITY CALCULATION (HEAD) ---
-        # Since Dn is maintained constant between Head and Trunk, 
-        # the packing density (units/100m2) will actually be identical.
-        # We perform the calculation again for verification.
-        packing_density_head = 100.0 * 2.0 * 1.1 * (1.0 - self.P_cubes) / (Dn**2)
+        Ns_head = params.Hs / (delta_head * Dn)
+        packing_density_head = 100.0 * 2.0 * 1.1 * (1.0 - self.P_cubes) / (Dn ** 2)
 
-        # 9. UNDERLAYER - HEAD
-        # Independently calculated based on Head Armor Weight (W_head)
-        # Since W_head differs from W_trunk (heavier), this may result in a different grading.
-        ul_head = self.calculate_underlayer_params(W_head)
+        ul_head = self.calculate_underlayer_params(W_head, params.use_en13383, params.custom_family)
 
-        # 10. Armor Layer Details (Common)
-        # r1 is the theoretical thickness of the double armor layer
         r1 = 2.0 * 1.1 * Dn
 
-        # --- CALCULATE CUBE DIMENSIONS (H, A, B) ---
-        # These shape factors are specific to the unit type (Cubes vs Antifer).
-        # Note: 1.0247 is a shape factor approximation used here for volume.
-        
-        # Trunk Dimensions
-        vol_trunk = W_trunk / params['Wc']
-        h_trunk = (vol_trunk / 1.0247)**(1/3.0)
+        vol_trunk = W_trunk / params.Wc
+        h_trunk = (vol_trunk / 1.0247) ** (1.0 / 3.0)
         a_trunk = 1.086 * h_trunk
         b_trunk = 1.005 * h_trunk
 
-        # Head Dimensions
         vol_head = W_head / Wc_head
-        h_head = (vol_head / 1.0247)**(1/3.0)
+        h_head = (vol_head / 1.0247) ** (1.0 / 3.0)
         a_head = 1.086 * h_head
         b_head = 1.005 * h_head
 
-        # 11. Compile Results into a Dictionary
-        results = {
-            "inputs": params,
-            "coefficients": coeffs,
-            "intermediate": {
-                "L0": L0, 
-                "k0": k0,    # Added to results
-                "s0m": s0m,  # Added to results
-                "sm": sm, 
-                "Nz": Nz,
-                "Storm_Duration_hr": storm_duration_hr,
-                "delta": delta_trunk, 
-                "Ns_trunk": Ns_trunk 
-            },
-            "final_trunk": {
-                "Dn": Dn,
-                "W": W_trunk,
-                "Mass_tonnes": W_trunk / self.g,
-                "Kd_Equivalent": kd_trunk_equiv,
-                "r1": r1,
-                "packing_density": packing_density_trunk,
-                "dims": {
-                    "H": h_trunk,
-                    "A": a_trunk,
-                    "B": b_trunk
-                }
-            },
-            "underlayer_trunk": ul_trunk,
-            "final_head": {
-                "Dn": Dn,
-                "Ns_head": Ns_head, 
-                "Kd_Derived": kd_head_derived,
-                "Kd_Ratio": kd_ratio,
-                "Delta_Required": delta_head,
-                "Wc_Required": Wc_head,
-                "W": W_head,
-                "Mass_tonnes": W_head / self.g,
-                "packing_density": packing_density_head,
-                "dims": {
-                    "H": h_head,
-                    "A": a_head,
-                    "B": b_head
-                }
-            },
-            "underlayer_head": ul_head,
-            "constants": {
-                "P_rock": self.P_rock,
-                "P_cubes": self.P_cubes
-            }
-        }
+        results = FullResults(
+            inputs=params,
+            coefficients=coeffs,
+            intermediate=Intermediates(),
+            final_trunk=ArmorResult(),
+            underlayer_trunk=ul_trunk,
+            final_head=ArmorResult(),
+            underlayer_head=ul_head,
+            P_rock=self.P_rock,
+            P_cubes=self.P_cubes,
+        )
+
+        results.intermediate.L0 = L0
+        results.intermediate.k0 = k0
+        results.intermediate.s0m = s0m
+        results.intermediate.sm = sm
+        results.intermediate.Nz = Nz
+        results.intermediate.Storm_Duration_hr = storm_duration_hr
+        results.intermediate.delta = delta_trunk
+        results.intermediate.Ns_trunk = Ns_trunk
+
+        results.final_trunk.Dn = Dn
+        results.final_trunk.W = W_trunk
+        results.final_trunk.Mass_tonnes = W_trunk / self.g
+        results.final_trunk.Kd = kd_trunk_equiv
+        results.final_trunk.r1 = r1
+        results.final_trunk.packing_density = packing_density_trunk
+        results.final_trunk.dims = Dimensions(h_trunk, a_trunk, b_trunk)
+
+        results.final_head.Ns = Ns_head
+        results.final_head.Dn = Dn
+        results.final_head.Kd = kd_head_derived
+        results.final_head.Kd_Ratio = kd_ratio
+        results.final_head.Delta_Required = delta_head
+        results.final_head.Wc_Required = Wc_head
+        results.final_head.W = W_head
+        results.final_head.Mass_tonnes = W_head / self.g
+        results.final_head.packing_density = packing_density_head
+        results.final_head.dims = Dimensions(h_head, a_head, b_head)
+
         return results
 
-    # --------------------------------------------------------------------------
-    # REPORT GENERATION
-    # --------------------------------------------------------------------------
-    def generate_report_file(self, results, filepath="output.txt"):
-        # Unpack dictionary for easier string formatting
-        p = results["inputs"]
-        c = results["coefficients"]
-        i = results["intermediate"]
-        ft = results["final_trunk"]
-        ut = results["underlayer_trunk"]
-        fh = results["final_head"]
-        uh = results["underlayer_head"]
-        const = results["constants"]
+    def format_report(self, results: FullResults) -> str:
+        def fmt(val: float, prec: int) -> str:
+            return f"{val:.{prec}f}"
 
-        vol_trunk_display = ft["Dn"] ** 3 if c["type"] == "Cubes" else 1.0247 * (ft["dims"]["H"] ** 3)
-        vol_head_display = fh["Dn"] ** 3 if c["type"] == "Cubes" else 1.0247 * (fh["dims"]["H"] ** 3)
+        def field(label: str, value: str, width: int = 38) -> str:
+            return f"   {label:<{width}} : {value}\n"
 
-        lines = []
-        lines.append("================================================================================")
-        lines.append("    TECHNICAL REPORT: BREAKWATER ARMOR & UNDERLAYER DESIGN                        ")
-        lines.append("================================================================================")
-        lines.append(f"Methodology: {c['name']}")
-        lines.append("-" * 80)
-        
-        # --- INPUT PARAMETERS ---
-        lines.append("1. INPUT PARAMETERS")
-        lines.append(f"   Hs (Sigificant Wave Height)         : {p['Hs']:.2f} m")
-        lines.append(f"   Tm (Mean Wave Period)               : {p['Tm']:.2f} s")
-        lines.append(f"   Number of waves (Nz)                : {p['Nz']:.0f}")
-        lines.append(f"   Nod (Damage)                        : {p['Nod']:.2f}")
-        lines.append(f"   Wc Trunk (Concrete Spec. Weight)    : {p['Wc']:.2f} kN/m3")
-        lines.append(f"   Ww (Water Specific Weight)          : {p['Ww']:.2f} kN/m3")
-        lines.append(f"   Relative Density D=(Wc/Ww)-1        : {i['delta']:.4f}")
-        lines.append(f"   Structure Slope (TRUNK & HEAD)      : {c['slope_ratio']}:1")
-        lines.append(f"   Porosity (Cubes)                    : {const['P_cubes']*100:.0f}%")
-        lines.append(f"   Porosity (Rock Layer)               : {const['P_rock']*100:.0f}%")
-        lines.append("-" * 80)
-        
-        # --- INTERMEDIATE PARAMETERS ---
-        lines.append("2. INTERMEDIATE PARAMETERS")
-        lines.append(f"   Wave Length (L0)                    : {i['L0']:.2f} m")
-        lines.append(f"   wave number (k0 = 2*pi/L0)          : {i['k0']:.4f}")
-        lines.append(f"   wave steepness (s0m = Hs/L0)        : {i['s0m']:.4f}")
-        lines.append(f"   Calculated Storm Duration (h)       : {i['Storm_Duration_hr']:.3f} h")
-        lines.append(f"   Stability Number TRUNK (Ns)         : {i['Ns_trunk']:.4f}")
-        lines.append(f"   Stability Number HEAD (Ns)          : {fh['Ns_head']:.4f}")
-        lines.append("-" * 80)
-        
-        # --- TRUNK SECTION ---
-        lines.append("3. ARMOR LAYER RESULTS - TRUNK")
-        lines.append(f"   BLOCK WEIGHT (W)                    : {ft['W']:.2f} kN")
-        lines.append(f"   Mass (ton)                          : {ft['Mass_tonnes']:.2f} t")
-        lines.append(f"   Nominal Diameter (Dn)               : {ft['Dn']:.3f} m")
-        if c["type"] == "Cubes":
-            lines.append(f"   Volume = Dn^3 (V)                   : {vol_trunk_display:.3f} m3")
+        p = results.inputs
+        c = results.coefficients
+        i = results.intermediate
+        ft = results.final_trunk
+        ut = results.underlayer_trunk
+        fh = results.final_head
+        uh = results.underlayer_head
+
+        armor_vol_trunk = 1.0247 * (ft.dims.H ** 3) if c.type == "Antifer" else (ft.Dn ** 3)
+        armor_vol_head = 1.0247 * (fh.dims.H ** 3) if c.type == "Antifer" else (fh.Dn ** 3)
+
+        methodology_name = self.get_formula_display_name(p.Formula_ID)
+
+        ss: List[str] = []
+        ss.append("================================================================================\n")
+        ss.append("    TECHNICAL REPORT: BREAKWATER ARMOR & UNDERLAYER DESIGN\n")
+        ss.append("================================================================================\n")
+        ss.append(f"Methodology: {methodology_name}\n")
+        ss.append("--------------------------------------------------------------------------------\n")
+
+        ss.append("1. INPUT PARAMETERS\n")
+        ss.append(field("Hs (Significant Wave Height)", fmt(p.Hs, 2) + " m"))
+        ss.append(field("Tm (Mean Wave Period)", fmt(p.Tm, 2) + " s"))
+        ss.append(field("Number of waves (Nz)", fmt(p.Number_of_Waves, 0)))
+        ss.append(field("Nod (Damage)", fmt(p.Nod, 2)))
+        ss.append(field("Wc Trunk (Concrete Spec. Weight)", fmt(p.Wc, 2) + " kN/m3"))
+        ss.append(field("Ww (Water Specific Weight)", fmt(p.Ww, 2) + " kN/m3"))
+        ss.append(field("Relative Density D=(Wc/Ww)-1", fmt(i.delta, 4)))
+        ss.append(field("Structure Slope (TRUNK & HEAD)", fmt(c.slope_ratio, 1) + ":1"))
+        ss.append(field("Porosity (Cubes)", fmt(results.P_cubes * 100.0, 0) + "%"))
+        ss.append(field("Porosity (Rock Layer)", fmt(results.P_rock * 100.0, 0) + "%"))
+        ss.append("--------------------------------------------------------------------------------\n")
+
+        ss.append("2. INTERMEDIATE PARAMETERS\n")
+        ss.append(field("Wave Length (L0)", fmt(i.L0, 2) + " m"))
+        ss.append(field("Wave number (k0 = 2*pi/L0)", fmt(i.k0, 4)))
+        ss.append(field("Wave steepness (s0m = Hs/L0)", fmt(i.s0m, 4)))
+        ss.append(field("Storm Duration (h)", fmt(i.Storm_Duration_hr, 3) + " h"))
+        ss.append(field("Stability Number TRUNK (Ns)", fmt(i.Ns_trunk, 4)))
+        ss.append(field("Stability Number HEAD (Ns)", fmt(fh.Ns, 4)))
+        ss.append("--------------------------------------------------------------------------------\n")
+
+        ss.append("3. ARMOR LAYER RESULTS - TRUNK\n")
+        ss.append(field("BLOCK WEIGHT (W)", fmt(ft.W, 2) + " kN"))
+        ss.append(field("Mass (t)", fmt(ft.Mass_tonnes, 2) + " t"))
+        ss.append(field("Nominal Dimension (Dn)", fmt(ft.Dn, 3) + " m"))
+        if c.type == "Cubes":
+            ss.append(field("Volume = Dn^3 (V)", fmt(armor_vol_trunk, 3) + " m3"))
         else:
-            lines.append(f"   Volume = 1.0247 * H^3 (V)           : {vol_trunk_display:.3f} m3")
-            lines.append(f"   Cube Height (H)                     : {ft['dims']['H']:.3f} m")
-            lines.append(f"   Cube Top Width (B)                  : {ft['dims']['B']:.3f} m")
-            lines.append(f"   Cube Base Width (A)                 : {ft['dims']['A']:.3f} m")
-        lines.append(f"   KD_TRUNK (Equivalent)               : {ft['Kd_Equivalent']:.2f}")
-        lines.append(f"   Double Layer Thickness (r1)         : {ft['r1']:.2f} m")
-        lines.append(f"   Packing Density, d [units/100m2]    : {ft['packing_density']:.2f}")
-        lines.append("")
-        
-        # --- UNDERLAYER TRUNK ---
-        lines.append("4. UNDERLAYER RESULTS - TRUNK")
-        lines.append(f"   Theoretical Target (W/10)           : {ut['target_W']:.2f} kN ({ut['target_M50_kg']:.1f} kg)")
-        lines.append(f"   Adopted rock grading                : {ut['grading_name']}")
-        lines.append(f"   Representative M50                  : {ut['M50_kg']:.1f} kg")
-        lines.append(f"   Nominal lower limit (NLL)           : {ut['NLL_kg']:.1f} kg")
-        lines.append(f"   Nominal upper limit (NUL)           : {ut['NUL_kg']:.1f} kg")
-        lines.append(f"   Extreme lower limit (ELL)           : {ut['ELL_kg']:.1f} kg")
-        lines.append(f"   Extreme upper limit (EUL)           : {ut['EUL_kg']:.1f} kg")
-        lines.append(f"   Nominal Diameter (Dn_rock)          : {ut['Dn_rock']:.3f} m")
-        lines.append(f"   Double Layer Thickness (r2)         : {ut['r2']:.2f} m")
-        lines.append(f"   Packing Density, f2 [rocks/100m2]   : {ut['f2']:.2f}")
-        lines.append("-" * 80)
+            ss.append(field("Volume = 1.0247 * H^3 (V)", fmt(armor_vol_trunk, 3) + " m3"))
+            ss.append(field("Block Height (H)", fmt(ft.dims.H, 3) + " m"))
+            ss.append(field("Block Top Width (B)", fmt(ft.dims.B, 3) + " m"))
+            ss.append(field("Block Base Width (A)", fmt(ft.dims.A, 3) + " m"))
+        ss.append(field("KD_TRUNK (Equivalent)", fmt(ft.Kd, 2)))
+        ss.append(field("Double Layer Thickness (r1)", fmt(ft.r1, 2) + " m"))
+        ss.append(field("Packing Density, d [units/100m2]", fmt(ft.packing_density, 2)))
+        ss.append("\n")
 
-        # --- HEAD SECTION ---
-        lines.append("5. ARMOR LAYER RESULTS - HEAD (High Density)")
-        lines.append("   *Maintains same Dn and Slope as Trunk*")
-        lines.append(f"   Stability Ratio (Kd_T/Kd_H)         : {fh['Kd_Ratio']:.2f}")
-        lines.append(f"   Nominal Diameter (Dn)               : {fh['Dn']:.3f} m")
-        if c["type"] == "Cubes":
-            lines.append(f"   Volume = Dn^3 (V)                   : {vol_head_display:.3f} m3")
+        ss.append("4. UNDERLAYER RESULTS - TRUNK\n")
+        ss.append(field("Theoretical Target (W/10)", fmt(ut.target_W, 2) + " kN (" + fmt(ut.target_M50_kg, 1) + " kg)"))
+        ss.append(field("Adopted rock grading", ut.grading_name))
+        ss.append(field("Representative M50", fmt(ut.M50_kg, 1) + " kg"))
+        ss.append(field("Nominal lower limit (NLL)", fmt(ut.NLL_kg, 1) + " kg"))
+        ss.append(field("Nominal upper limit (NUL)", fmt(ut.NUL_kg, 1) + " kg"))
+        ss.append(field("Extreme lower limit (ELL)", fmt(ut.ELL_kg, 1) + " kg"))
+        ss.append(field("Extreme upper limit (EUL)", fmt(ut.EUL_kg, 1) + " kg"))
+        ss.append(field("Nominal Dimension (Dn_rock)", fmt(ut.Dn_rock, 3) + " m"))
+        ss.append(field("Double Layer Thickness (r2)", fmt(ut.r2, 2) + " m"))
+        ss.append(field("Packing Density, f2 [rocks/100m2]", fmt(ut.f2, 2)))
+        if ut.used_custom_interpolation:
+            ss.append(field("Custom family basis", ut.custom_family))
+            ss.append(field("Custom ratio R=NUL/NLL", fmt(ut.custom_ratio_nul_nll, 3)))
+        ss.append("-" * 80 + "\n")
+
+        ss.append("5. ARMOR LAYER RESULTS - HEAD (High Density)\n")
+        ss.append("   *Maintains same Dn and slope as Trunk*\n")
+        ss.append(field("Stability Ratio (Kd_T/Kd_H)", fmt(fh.Kd_Ratio, 2)))
+        ss.append(field("Nominal Dimension (Dn)", fmt(fh.Dn, 3) + " m"))
+        if c.type == "Cubes":
+            ss.append(field("Volume = Dn^3 (V)", fmt(armor_vol_head, 3) + " m3"))
         else:
-            lines.append(f"   Volume = 1.0247 * H^3 (V)           : {vol_head_display:.3f} m3")
-            lines.append(f"   Cube Height (H)                     : {fh['dims']['H']:.3f} m")
-            lines.append(f"   Cube Top width (B)                  : {fh['dims']['B']:.3f} m")
-            lines.append(f"   Cube Base Width (A)                 : {fh['dims']['A']:.3f} m")
-        lines.append(f"   KD_HEAD (Equivalent)                : {fh['Kd_Derived']:.2f}")
-        lines.append(f"   Required Concrete Density (Wc)      : {fh['Wc_Required']:.2f} kN/m3")
-        lines.append(f"   BLOCK WEIGHT (W)                    : {fh['W']:.2f} kN")
-        lines.append(f"   Mass (ton)                          : {fh['Mass_tonnes']:.2f} t")
-        lines.append(f"   Packing Density, d [units/100m2]    : {fh['packing_density']:.2f}")
-        lines.append("")
-        
-        # --- UNDERLAYER HEAD ---
-        lines.append("6. UNDERLAYER RESULTS - HEAD")
-        lines.append(f"   Theoretical Target (W/10)           : {uh['target_W']:.2f} kN ({uh['target_M50_kg']:.1f} kg)")
-        lines.append(f"   Adopted rock grading                : {uh['grading_name']}")
-        lines.append(f"   Representative M50                  : {uh['M50_kg']:.1f} kg")
-        lines.append(f"   Nominal lower limit (NLL)           : {uh['NLL_kg']:.1f} kg")
-        lines.append(f"   Nominal upper limit (NUL)           : {uh['NUL_kg']:.1f} kg")
-        lines.append(f"   Extreme lower limit (ELL)           : {uh['ELL_kg']:.1f} kg")
-        lines.append(f"   Extreme upper limit (EUL)           : {uh['EUL_kg']:.1f} kg")
-        lines.append(f"   Nominal Diameter (Dn_rock)          : {uh['Dn_rock']:.3f} m")
-        lines.append(f"   Double Layer Thickness (r2)         : {uh['r2']:.2f} m")
-        lines.append(f"   Packing Density, f2 [rocks/100m2]   : {uh['f2']:.2f}")
-        lines.append("=" * 80)
-        lines.append("")
-        
-        try:
-            with open(filepath, "w", encoding="utf-8") as file:
-                file.write("\n".join(lines))
-            print(f"\n Report generated successfully: {os.path.abspath(filepath)}")
-            print("Report content:\n")
-            print("\n".join(lines))
-        except IOError as e:
-            print(f"\n Error saving file: {e}")
+            ss.append(field("Volume = 1.0247 * H^3 (V)", fmt(armor_vol_head, 3) + " m3"))
+            ss.append(field("Block Height (H)", fmt(fh.dims.H, 3) + " m"))
+            ss.append(field("Block Top Width (B)", fmt(fh.dims.B, 3) + " m"))
+            ss.append(field("Block Base Width (A)", fmt(fh.dims.A, 3) + " m"))
+        ss.append(field("KD_HEAD (Equivalent)", fmt(fh.Kd, 2)))
+        ss.append(field("Required Concrete Density (Wc)", fmt(fh.Wc_Required, 2) + " kN/m3"))
+        ss.append(field("BLOCK WEIGHT (W)", fmt(fh.W, 2) + " kN"))
+        ss.append(field("Mass (t)", fmt(fh.Mass_tonnes, 2) + " t"))
+        ss.append(field("Packing Density, d [units/100m2]", fmt(fh.packing_density, 2)))
+        ss.append("\n")
 
-# ==============================================================================
-# MAIN EXECUTION BLOCK
-# ==============================================================================
-def main():
+        ss.append("6. UNDERLAYER RESULTS - HEAD\n")
+        ss.append(field("Theoretical Target (W/10)", fmt(uh.target_W, 2) + " kN (" + fmt(uh.target_M50_kg, 1) + " kg)"))
+        ss.append(field("Adopted rock grading", uh.grading_name))
+        ss.append(field("Representative M50", fmt(uh.M50_kg, 1) + " kg"))
+        ss.append(field("Nominal lower limit (NLL)", fmt(uh.NLL_kg, 1) + " kg"))
+        ss.append(field("Nominal upper limit (NUL)", fmt(uh.NUL_kg, 1) + " kg"))
+        ss.append(field("Extreme lower limit (ELL)", fmt(uh.ELL_kg, 1) + " kg"))
+        ss.append(field("Extreme upper limit (EUL)", fmt(uh.EUL_kg, 1) + " kg"))
+        ss.append(field("Nominal Dimension (Dn_rock)", fmt(uh.Dn_rock, 3) + " m"))
+        ss.append(field("Double Layer Thickness (r2)", fmt(uh.r2, 2) + " m"))
+        ss.append(field("Packing Density, f2 [rocks/100m2]", fmt(uh.f2, 2)))
+        if uh.used_custom_interpolation:
+            ss.append(field("Custom family basis", uh.custom_family))
+            ss.append(field("Custom ratio R=NUL/NLL", fmt(uh.custom_ratio_nul_nll, 3)))
+        ss.append("=" * 80 + "\n")
+
+        return "".join(ss)
+
+    def generate_report_file(self, results: FullResults, filepath: str = "output.txt") -> None:
+        report_content = self.format_report(results)
+
+        with open(filepath, "ab") as outfile:
+            outfile.write(report_content.encode("utf-8"))
+
+        sys.stdout.write(report_content)
+
+
+def get_param(prompt: str, default_val: float) -> float:
+    sys.stdout.write(f"{prompt} [{default_val}]: ")
+    sys.stdout.flush()
+    try:
+        input_str = sys.stdin.readline()
+    except Exception:
+        return default_val
+
+    startpos = 0
+    while startpos < len(input_str) and input_str[startpos] in " \n\r\t":
+        startpos += 1
+
+    if startpos >= len(input_str):
+        return default_val
+
+    try:
+        return float(input_str[startpos:])
+    except Exception:
+        return default_val
+
+
+def trim_copy(s: str) -> str:
+    start = 0
+    while start < len(s) and s[start] in " \n\r\t":
+        start += 1
+    if start >= len(s):
+        return ""
+    end = len(s) - 1
+    while end >= 0 and s[end] in " \n\r\t":
+        end -= 1
+    return s[start:end + 1]
+
+
+def to_upper_copy(s: str) -> str:
+    return s.upper()
+
+
+def parse_bool(s: str, default_val: bool) -> bool:
+    t = to_upper_copy(trim_copy(s))
+    if t == "":
+        return default_val
+    if t in {"1", "TRUE", "T", "YES", "Y"}:
+        return True
+    if t in {"0", "FALSE", "F", "NO", "N"}:
+        return False
+    return default_val
+
+
+def get_text_param(prompt: str, default_val: str) -> str:
+    sys.stdout.write(f"{prompt} [{default_val}]: ")
+    sys.stdout.flush()
+    try:
+        input_str = sys.stdin.readline()
+    except Exception:
+        return default_val
+
+    startpos = 0
+    while startpos < len(input_str) and input_str[startpos] in " \n\r\t":
+        startpos += 1
+
+    if startpos >= len(input_str):
+        return default_val
+
+    endpos = len(input_str) - 1
+    while endpos >= 0 and input_str[endpos] in " \n\r\t":
+        endpos -= 1
+    return input_str[startpos:endpos + 1]
+
+
+def main() -> int:
     calc = BreakwaterCalculator()
-    
-    print("\n--- COASTAL PROTECTION BLOCK CALCULATOR (TRUNK & HEAD) ---")
-    # REORDERED MENU
-    print("1. Van der Meer (1988a) - Simple Cubes (Slope 2.0:1)")
-    print("2. Van Der Meer (1988a) - Simple Cubes (Slope 1.5:1)")
-    print("3. Chegini-Aghtouman (2006) - Antifer (Slope 2:1)")
-    print("4. Chegini-Aghtouman (2006) - Antifer (Slope 1.5:1)")
-    
-    try:
-        selection = input("\nOption [1-4]: ").strip()
-    except KeyboardInterrupt:
-        sys.exit(0)
+    user_inputs = Inputs(
+        calc.defaults.Hs,
+        calc.defaults.Tm,
+        calc.defaults.Number_of_Waves,
+        calc.defaults.Nod,
+        calc.defaults.Wc,
+        calc.defaults.Ww,
+        calc.defaults.Formula_ID,
+        calc.defaults.use_en13383,
+        calc.defaults.custom_family,
+    )
+    formula_id = 1
 
-    # Set formula ID, default to 1 if user just pressed ENTER or typed nonsense
-    if selection in ['1', '2', '3', '4']:
-        formula_id = int(selection)
+    argc = len(sys.argv)
+    argv = sys.argv
+
+    if argc >= 7:
+        try:
+            user_inputs.Hs = float(argv[1])
+            user_inputs.Tm = float(argv[2])
+            user_inputs.Number_of_Waves = float(argv[3])
+            user_inputs.Nod = float(argv[4])
+            user_inputs.Wc = float(argv[5])
+            formula_id = int(argv[6])
+
+            if formula_id < 1 or formula_id > 4:
+                sys.stderr.write("Error: Formula ID must be 1-4. Using default (1).\n")
+                formula_id = 1
+            user_inputs.Formula_ID = formula_id
+
+            if argc >= 8:
+                user_inputs.use_en13383 = parse_bool(argv[7], calc.defaults.use_en13383)
+            if argc >= 9:
+                user_inputs.custom_family = to_upper_copy(trim_copy(argv[8]))
+                if user_inputs.custom_family not in {"AUTO", "HMA", "LMA", "CP"}:
+                    user_inputs.custom_family = "AUTO"
+        except Exception as e:
+            sys.stderr.write(f"Error parsing command line arguments: {e}\n")
+            sys.stderr.write(
+                f"Usage: {argv[0]} [Hs] [Tm] [NumberOfWaves] [Nod] [Wc] [FormulaID] [UseEN13383] [CustomFamily]\n"
+            )
+            return 1
     else:
-        formula_id = 1
+        sys.stdout.write("\n--- COASTAL PROTECTION BLOCK CALCULATOR (TRUNK & HEAD) ---\n")
+        sys.stdout.write("1. Simple Cubes (Slope 2.0:1) - Van der Meer\n")
+        sys.stdout.write("2. Simple Cubes (Slope 1.5:1) - Van der Meer\n")
+        sys.stdout.write("3. Antifer (Slope 2.0:1) - Chegini\n")
+        sys.stdout.write("4. Antifer (Slope 1.5:1) - Chegini\n")
 
-    # Unconditionally ask for parameters (matching Fortran/C++ behavior)
-    print("\n--- Enter Parameters (Press ENTER for Default) ---")
-    
-    def get_param(prompt, default_val):
-        val = input(f"{prompt} [{default_val}]: ").strip()
-        return float(val) if val else default_val
+        sys.stdout.write("\nOption [1-4]: ")
+        sys.stdout.flush()
+        selection = sys.stdin.readline()
 
-    try:
-        defaults = calc.defaults
-        user_inputs = {
-            "Hs": get_param("Hs (m)", defaults["Hs"]),
-            "Tm": get_param("Tm (s)", defaults["Tm"]),
-            "Nod": get_param("Nod (Damage)", defaults["Nod"]),
-            "Nz": get_param("Number of waves (Nz)", defaults["Nz"]),
-            "Wc": get_param("Concrete Weight Trunk (kN/m3)", defaults["Wc"])
-        }
-    except ValueError:
-        print("\n Error: Non-numeric value.")
-        sys.exit(1)
+        endpos = len(selection) - 1
+        while endpos >= 0 and selection[endpos] in " \n\r\t":
+            endpos -= 1
+        if endpos >= 0:
+            selection = selection[:endpos + 1]
+        else:
+            selection = ""
+
+        if selection in {"1", "2", "3", "4"}:
+            formula_id = int(selection)
+        else:
+            formula_id = 1
+        user_inputs.Formula_ID = formula_id
+
+        sys.stdout.write("\n--- Enter Parameters (Press ENTER for Default) ---\n")
+        user_inputs.Hs = get_param("Hs (m)", calc.defaults.Hs)
+        user_inputs.Tm = get_param("Tm (s)", calc.defaults.Tm)
+        user_inputs.Number_of_Waves = get_param("Number of waves (Nz)", calc.defaults.Number_of_Waves)
+        user_inputs.Nod = get_param("Nod (Damage)", calc.defaults.Nod)
+        user_inputs.Wc = get_param("Concrete Weight Trunk (kN/m3)", calc.defaults.Wc)
+
+        use_en_str = get_text_param(
+            "Use standard EN 13383 underlayer grading? [true/false]",
+            "true" if calc.defaults.use_en13383 else "false",
+        )
+        user_inputs.use_en13383 = parse_bool(use_en_str, calc.defaults.use_en13383)
+
+        family = get_text_param("Custom underlayer family [AUTO/HMA/LMA/CP]", calc.defaults.custom_family)
+        family = to_upper_copy(trim_copy(family))
+        if family in {"AUTO", "HMA", "LMA", "CP"}:
+            user_inputs.custom_family = family
+        else:
+            user_inputs.custom_family = "AUTO"
 
     try:
         results = calc.solve(formula_id, user_inputs)
         calc.generate_report_file(results, "output.txt")
     except Exception as e:
-        print(f"\n Calculation Error: {e}")
+        sys.stdout.write(f"\n Calculation Error: {e}\n")
+
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
