@@ -1,0 +1,1409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <title>Breakwater Armor Calculator</title>
+  <style>
+    :root {
+      --bg: #07111f;
+      --panel: #0d1b2d;
+      --panel-2: #12243a;
+      --panel-3: #172d48;
+      --border: #284663;
+      --text: #eef6ff;
+      --muted: #a9bdd2;
+      --accent: #37a4ff;
+      --accent-2: #76c6ff;
+      --accent-dark: #0f70bd;
+      --good: #68d7a7;
+      --danger: #ff7c85;
+      --shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+      --radius: 15px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 15% 0%, rgba(55, 164, 255, 0.12), transparent 30rem),
+        linear-gradient(150deg, #07111f 0%, #091827 45%, #06101c 100%);
+      font-size: 17px;
+      line-height: 1.45;
+    }
+
+    button, input, select { font: inherit; }
+
+    .app-shell {
+      width: min(1540px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 24px 0 34px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 18px 22px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: rgba(13, 27, 45, 0.94);
+      box-shadow: var(--shadow);
+    }
+
+    .brand { min-width: 0; }
+    .brand h1 {
+      margin: 0;
+      font-size: clamp(1.45rem, 2.4vw, 2.15rem);
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+    }
+    .brand p {
+      margin: 7px 0 0;
+      color: var(--muted);
+      font-size: 0.96rem;
+    }
+
+    .language-control {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 0 0 auto;
+    }
+
+    label { color: var(--muted); font-weight: 650; }
+
+    select, input[type="number"] {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      background: #09182a;
+      padding: 11px 12px;
+      outline: none;
+      transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+    }
+
+    select:focus, input[type="number"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(55, 164, 255, 0.18);
+      background: #0b1c30;
+    }
+
+    select:disabled {
+      opacity: 0.48;
+      cursor: not-allowed;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(320px, 390px) minmax(0, 1fr);
+      gap: 20px;
+      margin-top: 20px;
+      align-items: start;
+    }
+
+    .panel {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: rgba(13, 27, 45, 0.94);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 16px 19px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(25, 48, 75, 0.85), rgba(17, 36, 58, 0.85));
+    }
+
+    .panel-header h2 {
+      margin: 0;
+      font-size: 1.12rem;
+      letter-spacing: 0.01em;
+    }
+
+    .panel-body { padding: 18px; }
+
+    .input-grid { display: grid; gap: 15px; }
+    .field { display: grid; gap: 7px; }
+    .field label { font-size: 0.92rem; }
+    .field-hint { color: var(--muted); font-size: 0.78rem; margin-top: -2px; }
+
+    .checkbox-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 12px;
+      border-radius: 11px;
+      border: 1px solid var(--border);
+      background: rgba(18, 36, 58, 0.7);
+    }
+
+    .checkbox-row input {
+      width: 19px;
+      height: 19px;
+      margin: 2px 0 0;
+      accent-color: var(--accent);
+      flex: 0 0 auto;
+    }
+
+    .checkbox-row label {
+      color: var(--text);
+      font-size: 0.9rem;
+      line-height: 1.35;
+      cursor: pointer;
+    }
+
+    .button-stack {
+      display: grid;
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    .primary-button, .secondary-button {
+      border: 0;
+      border-radius: 11px;
+      padding: 12px 16px;
+      cursor: pointer;
+      font-weight: 760;
+      transition: transform 120ms ease, filter 120ms ease, border-color 120ms ease;
+    }
+
+    .primary-button {
+      color: #00101e;
+      background: linear-gradient(135deg, var(--accent-2), var(--accent));
+      box-shadow: 0 10px 28px rgba(55, 164, 255, 0.22);
+    }
+
+    .secondary-button {
+      color: var(--text);
+      background: #11263d;
+      border: 1px solid var(--border);
+    }
+
+    .primary-button:hover, .secondary-button:hover { filter: brightness(1.08); }
+    .primary-button:active, .secondary-button:active { transform: translateY(1px); }
+
+    .actions-inline {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .error-bar {
+      display: none;
+      margin-bottom: 14px;
+      padding: 11px 13px;
+      border: 1px solid rgba(255, 124, 133, 0.58);
+      border-radius: 10px;
+      color: #ffd9dc;
+      background: rgba(117, 24, 33, 0.34);
+      font-weight: 650;
+    }
+    .error-bar.visible { display: block; }
+
+    .results-panel { min-height: 690px; }
+    .results-body { padding: 18px; }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .summary-card {
+      border: 1px solid var(--border);
+      border-radius: 13px;
+      background: linear-gradient(145deg, rgba(21, 45, 72, 0.94), rgba(12, 27, 45, 0.94));
+      overflow: hidden;
+    }
+
+    .summary-card h3 {
+      margin: 0;
+      padding: 13px 15px;
+      font-size: 1rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--accent-2);
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .metric {
+      padding: 13px 15px;
+      border-right: 1px solid rgba(40, 70, 99, 0.65);
+      border-bottom: 1px solid rgba(40, 70, 99, 0.65);
+      min-width: 0;
+    }
+    .metric:nth-child(2n) { border-right: 0; }
+    .metric:nth-last-child(-n+2) { border-bottom: 0; }
+
+    .metric-label {
+      display: block;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 680;
+      margin-bottom: 4px;
+    }
+
+    .metric-value {
+      display: block;
+      font-size: clamp(1rem, 1.65vw, 1.3rem);
+      font-weight: 780;
+      letter-spacing: -0.015em;
+      overflow-wrap: anywhere;
+    }
+
+    .report-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 2px 0 10px;
+    }
+
+    .report-toolbar h3 { margin: 0; font-size: 1rem; }
+    .status-text { color: var(--good); font-size: 0.84rem; min-height: 1.2em; }
+
+    pre {
+      margin: 0;
+      min-height: 430px;
+      max-height: 610px;
+      overflow: auto;
+      padding: 17px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: #e7f3ff;
+      background: #06101d;
+      font: 15px/1.45 "Cascadia Mono", "Courier New", monospace;
+      tab-size: 4;
+      white-space: pre;
+    }
+
+    footer {
+      color: var(--muted);
+      font-size: 0.82rem;
+      text-align: center;
+      padding: 18px 8px 0;
+    }
+
+    @media (max-width: 1040px) {
+      .workspace { grid-template-columns: 1fr; }
+      .results-panel { min-height: 0; }
+    }
+
+    @media (max-width: 680px) {
+      body { font-size: 16px; }
+      .app-shell { width: min(100% - 18px, 1540px); padding-top: 9px; }
+      .topbar { align-items: stretch; flex-direction: column; padding: 16px; }
+      .language-control { justify-content: space-between; }
+      .language-control select { width: min(190px, 58vw); }
+      .summary-grid { grid-template-columns: 1fr; }
+      .actions-inline { grid-template-columns: 1fr; }
+      .metrics { grid-template-columns: 1fr; }
+      .metric, .metric:nth-child(2n), .metric:nth-last-child(-n+2) {
+        border-right: 0;
+        border-bottom: 1px solid rgba(40, 70, 99, 0.65);
+      }
+      .metric:last-child { border-bottom: 0; }
+      pre { font-size: 13px; }
+    }
+
+    @media print {
+      :root { color-scheme: light; }
+      body { background: white; color: black; }
+      .app-shell { width: 100%; padding: 0; }
+      .topbar, .inputs-panel, .report-toolbar, footer { display: none !important; }
+      .workspace { display: block; margin: 0; }
+      .panel, .summary-card { box-shadow: none; border-color: #aaa; background: white; }
+      .summary-card h3, .metric-value, .metric-label { color: black; }
+      .results-body { padding: 0; }
+      pre {
+        max-height: none;
+        border: 0;
+        color: black;
+        background: white;
+        white-space: pre-wrap;
+        font-size: 10pt;
+        overflow: visible;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <h1 id="appTitle">Breakwater Armor Calculator</h1>
+        <p id="appSubtitle">Hydraulic sizing of armor units and rock underlayers for trunk and head zones.</p>
+      </div>
+      <div class="language-control">
+        <label id="languageLabel" for="language">Language:</label>
+        <select id="language" aria-label="Language">
+          <option value="en">English</option>
+          <option value="pt">Português</option>
+          <option value="fr">Français</option>
+        </select>
+      </div>
+    </header>
+
+    <section class="workspace">
+      <aside class="panel inputs-panel">
+        <div class="panel-header"><h2 id="inputPanelTitle">Design Inputs</h2></div>
+        <div class="panel-body">
+          <div id="errorBar" class="error-bar" role="alert"></div>
+          <form id="calculatorForm" class="input-grid" novalidate>
+            <div class="field">
+              <label id="hsLabel" for="hs">Wave Height, Hs (m)</label>
+              <input id="hs" type="number" min="0" step="any" value="11.00" inputmode="decimal">
+            </div>
+            <div class="field">
+              <label id="tmLabel" for="tm">Mean Period, Tm (m)</label>
+              <input id="tm" type="number" min="0" step="any" value="11.90" inputmode="decimal">
+            </div>
+            <div class="field">
+              <label id="nzLabel" for="nz">Number of Waves (Nz):</label>
+              <input id="nz" type="number" min="0" step="any" value="3000.00" inputmode="decimal">
+            </div>
+            <div class="field">
+              <label id="nodLabel" for="nod">Nod (Damage):</label>
+              <input id="nod" type="number" min="0" step="0.01" value="0.50" inputmode="decimal">
+            </div>
+            <div class="field">
+              <label id="wcLabel" for="wc">Wc Concrete (kN/m3):</label>
+              <input id="wc" type="number" min="0" step="any" value="27.48" inputmode="decimal">
+            </div>
+            <div class="field">
+              <label id="formulaLabel" for="formula">Formula / Slope:</label>
+              <select id="formula"></select>
+            </div>
+            <div class="checkbox-row">
+              <input id="standardUnderlayer" type="checkbox" checked>
+              <label id="standardUnderlayerLabel" for="standardUnderlayer">Use EN 13383 standard underlayer grading</label>
+            </div>
+            <div class="field">
+              <label id="familyLabel" for="family">Custom underlayer family:</label>
+              <select id="family" disabled></select>
+            </div>
+            <div class="button-stack">
+              <button id="calculateButton" class="primary-button" type="submit">Calculate Armor</button>
+              <div class="actions-inline">
+                <button id="downloadButton" class="secondary-button" type="button">Download Report</button>
+                <button id="copyButton" class="secondary-button" type="button">Copy Report</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </aside>
+
+      <section class="panel results-panel">
+        <div class="panel-header"><h2 id="resultsPanelTitle">Design Results</h2></div>
+        <div class="results-body">
+          <div class="summary-grid">
+            <article class="summary-card">
+              <h3 id="trunkCardTitle">Trunk Armor</h3>
+              <div class="metrics">
+                <div class="metric"><span id="trunkWeightLabel" class="metric-label">Block Weight</span><span id="trunkWeight" class="metric-value">—</span></div>
+                <div class="metric"><span id="trunkMassLabel" class="metric-label">Mass</span><span id="trunkMass" class="metric-value">—</span></div>
+                <div class="metric"><span id="trunkDnLabel" class="metric-label">Nominal Dimension</span><span id="trunkDn" class="metric-value">—</span></div>
+                <div class="metric"><span id="trunkGradingLabel" class="metric-label">Underlayer Grading</span><span id="trunkGrading" class="metric-value">—</span></div>
+              </div>
+            </article>
+            <article class="summary-card">
+              <h3 id="headCardTitle">Head Armor</h3>
+              <div class="metrics">
+                <div class="metric"><span id="headWeightLabel" class="metric-label">Block Weight</span><span id="headWeight" class="metric-value">—</span></div>
+                <div class="metric"><span id="headMassLabel" class="metric-label">Mass</span><span id="headMass" class="metric-value">—</span></div>
+                <div class="metric"><span id="headWcLabel" class="metric-label">Required Wc</span><span id="headWc" class="metric-value">—</span></div>
+                <div class="metric"><span id="headGradingLabel" class="metric-label">Underlayer Grading</span><span id="headGrading" class="metric-value">—</span></div>
+              </div>
+            </article>
+          </div>
+
+          <div class="report-toolbar">
+            <h3 id="reportTitle">Technical Report</h3>
+            <span id="statusText" class="status-text" aria-live="polite"></span>
+          </div>
+          <pre id="reportOutput" aria-live="polite"></pre>
+        </div>
+      </section>
+    </section>
+
+    <footer id="footerText">All calculations are performed locally in this browser.</footer>
+  </main>
+
+  <script>
+    "use strict";
+
+    const G = 9.80665;
+    const W_ROCK_SPEC = 26.5;
+    const P_CUBES = 0.40;
+    const P_ROCK = 0.25;
+    const KD_RATIO_FIXED = 1.5;
+
+    const DEFAULTS = Object.freeze({
+      Hs: 11.0,
+      Tm: 11.9,
+      Number_of_Waves: 3000.0,
+      Nod: 0.5,
+      Wc: 27.48,
+      Ww: 10.05,
+      Formula_ID: 1,
+      use_standard_underlayer_grading: true,
+      custom_underlayer_family: "AUTO"
+    });
+
+    const FORMULAS = Object.freeze({
+      1: { type: "Cubes", slope_ratio: 2.0, k1: 7.374304189198, k2: 0.4, k3: 0.3, k4: 1.100642416298, k5: 0.1 },
+      2: { type: "Cubes", slope_ratio: 1.5, k1: 6.7, k2: 0.4, k3: 0.3, k4: 1.0, k5: 0.1 },
+      3: { type: "Antifer", slope_ratio: 2.0, k1: 6.138, k2: 0.443, k3: 0.276, k4: 1.164, k5: 0.07 },
+      4: { type: "Antifer", slope_ratio: 1.5, k1: 6.951, k2: 0.443, k3: 0.291, k4: 1.082, k5: 0.082 }
+    });
+
+    const STANDARD_GRADINGS = Object.freeze([
+      { name: "CP32/90", NLL_kg: 0.868, NUL_kg: 19.319, M50_kg: 10.0935 },
+      { name: "CP45/125", NLL_kg: 2.415, NUL_kg: 51.758, M50_kg: 27.0865 },
+      { name: "CP63/180", NLL_kg: 6.626, NUL_kg: 154.548, M50_kg: 80.5870 },
+      { name: "CP90/250", NLL_kg: 19.319, NUL_kg: 414.063, M50_kg: 216.6910 },
+      { name: "CP45/180", NLL_kg: 2.415, NUL_kg: 154.548, M50_kg: 78.4815 },
+      { name: "CP90/180", NLL_kg: 19.319, NUL_kg: 154.548, M50_kg: 86.9335 },
+      { name: "LMA5-40", NLL_kg: 5.0, NUL_kg: 40.0, M50_kg: 22.5 },
+      { name: "LMA10-60", NLL_kg: 10.0, NUL_kg: 60.0, M50_kg: 35.0 },
+      { name: "LMA15-120", NLL_kg: 15.0, NUL_kg: 120.0, M50_kg: 67.5 },
+      { name: "LMA40-200", NLL_kg: 40.0, NUL_kg: 200.0, M50_kg: 120.0 },
+      { name: "LMA60-300", NLL_kg: 60.0, NUL_kg: 300.0, M50_kg: 180.0 },
+      { name: "LMA15-300", NLL_kg: 15.0, NUL_kg: 300.0, M50_kg: 157.5 },
+      { name: "HMA300-1000", NLL_kg: 300.0, NUL_kg: 1000.0, M50_kg: 650.0 },
+      { name: "HMA1000-3000", NLL_kg: 1000.0, NUL_kg: 3000.0, M50_kg: 2000.0 },
+      { name: "HMA3000-6000", NLL_kg: 3000.0, NUL_kg: 6000.0, M50_kg: 4500.0 },
+      { name: "HMA6000-10000", NLL_kg: 6000.0, NUL_kg: 10000.0, M50_kg: 8000.0 },
+      { name: "HMA10000-15000", NLL_kg: 10000.0, NUL_kg: 15000.0, M50_kg: 12500.0 }
+    ]);
+
+    const LANGUAGE = {
+      en: {
+        window_title: "Breakwater Armor Calculator",
+        subtitle: "Hydraulic sizing of armor units and rock underlayers for trunk and head zones.",
+        input_error_title: "Input Error",
+        input_error_positive: "Please enter positive values for hydraulic parameters.",
+        calc_error_title: "Calculation Error",
+        language_label: "Language:",
+        input_panel_title: "Design Inputs",
+        results_panel_title: "Design Results",
+        hs_label: "Wave Height, Hs (m)",
+        tm_label: "Mean Period, Tm (m)",
+        nz_label: "Number of Waves (Nz):",
+        nod_label: "Nod (Damage):",
+        wc_label: "Wc Concrete (kN/m3):",
+        formula_label: "Formula / Slope:",
+        underlayer_standard_label: "Use EN 13383 standard underlayer grading",
+        underlayer_family_label: "Custom underlayer family:",
+        family_auto: "Automatic",
+        family_hma: "HMA",
+        family_lma: "LMA",
+        family_cp: "CP",
+        button_calculate: "Calculate Armor",
+        button_download: "Download Report",
+        button_copy: "Copy Report",
+        copied: "Report copied",
+        downloaded: "Report downloaded",
+        report_heading: "Technical Report",
+        footer: "All calculations are performed locally in this browser.",
+        trunk_card: "Trunk Armor",
+        head_card: "Head Armor",
+        block_weight: "Block Weight",
+        mass: "Mass",
+        nominal_dimension: "Nominal Dimension",
+        underlayer_grading: "Underlayer Grading",
+        required_wc: "Required Wc",
+        report_title: "TECHNICAL REPORT: BREAKWATER ARMOR & UNDERLAYER DESIGN",
+        methodology: "Methodology:",
+        section_input: "1. INPUT PARAMETERS",
+        section_intermediate: "2. INTERMEDIATE PARAMETERS",
+        section_armor_trunk: "3. ARMOR LAYER RESULTS - TRUNK",
+        section_underlayer_trunk: "4. UNDERLAYER RESULTS - TRUNK",
+        section_armor_head: "5. ARMOR LAYER RESULTS - HEAD (High Density)",
+        section_underlayer_head: "6. UNDERLAYER RESULTS - HEAD",
+        input_hs: "Hs (Significant Wave Height)",
+        input_tm: "Tm (Mean Wave Period)",
+        input_nz: "Number of waves (Nz)",
+        input_nod: "Nod (Damage)",
+        input_wc: "Wc Trunk (Concrete Spec. Weight)",
+        input_ww: "Ww (Water Specific Weight)",
+        input_delta: "Relative Density D=(Wc/Ww)-1",
+        input_slope: "Structure Slope (TRUNK & HEAD)",
+        input_porosity_cubes: "Porosity (Cubes)",
+        input_porosity_rock: "Porosity (Rock Layer)",
+        inter_l0: "Wave Length (L0)",
+        inter_k0: "Wave number (k0 = 2*pi/L0)",
+        inter_s0m: "Wave steepness (s0m = Hs/L0)",
+        inter_storm_duration: "Storm Duration (h)",
+        inter_ns_trunk: "Stability Number TRUNK (Ns)",
+        inter_ns_head: "Stability Number HEAD (Ns)",
+        armor_weight: "BLOCK WEIGHT (W)",
+        armor_mass: "Mass (t)",
+        armor_dn: "Nominal Dimension (Dn)",
+        armor_vol_dn3: "Volume = Dn^3 (V)",
+        armor_vol_antifer: "Volume = 1.0247 * H^3 (V)",
+        armor_h: "Block Height (H)",
+        armor_b: "Block Top Width (B)",
+        armor_a: "Block Base Width (A)",
+        armor_kd_trunk: "KD_TRUNK (Equivalent)",
+        armor_kd_head: "KD_HEAD (Equivalent)",
+        armor_r1: "Double Layer Thickness (r1)",
+        armor_packing: "Packing Density, d [units/100m2]",
+        under_target: "Theoretical Target (W/10)",
+        under_grading: "Adopted rock grading",
+        under_m50: "Representative M50",
+        under_nll: "Nominal lower limit (NLL)",
+        under_nul: "Nominal upper limit (NUL)",
+        under_ell: "Extreme lower limit (ELL)",
+        under_eul: "Extreme upper limit (EUL)",
+        under_dn: "Nominal Dimension (Dn_rock)",
+        under_r2: "Double Layer Thickness (r2)",
+        under_f2: "Packing Density, f2 [rocks/100m2]",
+        under_custom_family: "Custom family basis",
+        under_custom_ratio: "Custom ratio R=NUL/NLL",
+        head_note: "*Maintains same Dn and slope as Trunk*",
+        head_ratio: "Stability Ratio (Kd_T/Kd_H)",
+        head_required_wc: "Required Concrete Density (Wc)"
+      },
+      pt: {
+        window_title: "Calculadora do Manto de Quebra-Mares",
+        subtitle: "Dimensionamento hidráulico de blocos de manto e subcamadas de enrocamento no tronco e na cabeça.",
+        input_error_title: "Erro de entrada",
+        input_error_positive: "Introduza valores positivos para os parâmetros hidráulicos.",
+        calc_error_title: "Erro de cálculo",
+        language_label: "Idioma:",
+        input_panel_title: "Dados de Entrada",
+        results_panel_title: "Resultados do Dimensionamento",
+        hs_label: "Altura de Onda, Hs (m)",
+        tm_label: "Período Médio, Tm (m)",
+        nz_label: "Número de ondas (Nz):",
+        nod_label: "Nod (Dano):",
+        wc_label: "Wc do betão (kN/m3):",
+        formula_label: "Fórmula / Talude:",
+        underlayer_standard_label: "Usar classe padrão EN 13383 para a subcamada",
+        underlayer_family_label: "Família personalizada da subcamada:",
+        family_auto: "Automática",
+        family_hma: "HMA",
+        family_lma: "LMA",
+        family_cp: "CP",
+        button_calculate: "Calcular Manto",
+        button_download: "Descarregar Relatório",
+        button_copy: "Copiar Relatório",
+        copied: "Relatório copiado",
+        downloaded: "Relatório descarregado",
+        report_heading: "Relatório Técnico",
+        footer: "Todos os cálculos são executados localmente neste navegador.",
+        trunk_card: "Manto do Tronco",
+        head_card: "Manto da Cabeça",
+        block_weight: "Peso do Bloco",
+        mass: "Massa",
+        nominal_dimension: "Dimensão Nominal",
+        underlayer_grading: "Classe da Subcamada",
+        required_wc: "Wc Requerido",
+        report_title: "RELATÓRIO TÉCNICO: DIMENSIONAMENTO DO MANTO E DA SUBCAMADA DO QUEBRA-MAR",
+        methodology: "Metodologia:",
+        section_input: "1. PARÂMETROS DE ENTRADA",
+        section_intermediate: "2. PARÂMETROS INTERMÉDIOS",
+        section_armor_trunk: "3. RESULTADOS DA CAMADA DO MANTO - TRONCO",
+        section_underlayer_trunk: "4. RESULTADOS DA SUBCAMADA - TRONCO",
+        section_armor_head: "5. RESULTADOS DA CAMADA DO MANTO - CABEÇA (ALTA DENSIDADE)",
+        section_underlayer_head: "6. RESULTADOS DA SUBCAMADA - CABEÇA",
+        input_hs: "Hs (Altura significativa da onda)",
+        input_tm: "Tm (Período médio da onda)",
+        input_nz: "Número de ondas (Nz)",
+        input_nod: "Nod (Dano)",
+        input_wc: "Wc do tronco (peso esp. do betão)",
+        input_ww: "Ww (peso específico da água)",
+        input_delta: "Densidade relativa D=(Wc/Ww)-1",
+        input_slope: "Talude da estrutura (TRONCO/CABEÇA)",
+        input_porosity_cubes: "Porosidade (Cubos)",
+        input_porosity_rock: "Porosidade (Camada de enrocamento)",
+        inter_l0: "Comprimento de onda (L0)",
+        inter_k0: "Número de onda (k0 = 2*pi/L0)",
+        inter_s0m: "Declividade da onda (s0m = Hs/L0)",
+        inter_storm_duration: "Duração da tempestade (h)",
+        inter_ns_trunk: "Número de estabilidade TRONCO (Ns)",
+        inter_ns_head: "Número de estabilidade CABEÇA (Ns)",
+        armor_weight: "PESO DO BLOCO (W)",
+        armor_mass: "Massa (t)",
+        armor_dn: "Dimensão nominal (Dn)",
+        armor_vol_dn3: "Volume = Dn^3 (V)",
+        armor_vol_antifer: "Volume = 1.0247 * H^3 (V)",
+        armor_h: "Altura do bloco (H)",
+        armor_b: "Largura do bloco no topo (B)",
+        armor_a: "Largura do bloco na base (A)",
+        armor_kd_trunk: "KD_TRONCO (equivalente)",
+        armor_kd_head: "KD_CABEÇA (equivalente)",
+        armor_r1: "Espessura da camada dupla (r1)",
+        armor_packing: "Densidade de colocação, d [un/100m2]",
+        under_target: "Alvo teórico (W/10)",
+        under_grading: "Classe de enrocamento adoptada",
+        under_m50: "M50 representativo",
+        under_nll: "Limite nominal inferior (NLL)",
+        under_nul: "Limite nominal superior (NUL)",
+        under_ell: "Limite extremo inferior (ELL)",
+        under_eul: "Limite extremo superior (EUL)",
+        under_dn: "Diâmetro nominal (Dn_enrocam)",
+        under_r2: "Espessura da camada dupla (r2)",
+        under_f2: "Densidade, f2 [enrocam/100m2]",
+        under_custom_family: "Família personalizada de base",
+        under_custom_ratio: "Razão personalizada R=NUL/NLL",
+        head_note: "*Mantém o mesmo Dn e talude do tronco*",
+        head_ratio: "Razão de estabilidade (Kd_T/Kd_H)",
+        head_required_wc: "Densidade de betão requerida (Wc)"
+      },
+      fr: {
+        window_title: "Calculateur de carapace de brise-lames",
+        subtitle: "Dimensionnement hydraulique des blocs de carapace et des sous-couches du tronc et de la tête.",
+        input_error_title: "Erreur de saisie",
+        input_error_positive: "Veuillez saisir des valeurs positives pour les paramètres hydrauliques.",
+        calc_error_title: "Erreur de calcul",
+        language_label: "Langue :",
+        input_panel_title: "Données d’Entrée",
+        results_panel_title: "Résultats du Dimensionnement",
+        hs_label: "Hauteur de Vague, Hs (m)",
+        tm_label: "Période Moyenne, Tm (m)",
+        nz_label: "Nombre de vagues (Nz) :",
+        nod_label: "Nod (Endommagement) :",
+        wc_label: "Wc béton (kN/m3) :",
+        formula_label: "Formule / Talus :",
+        underlayer_standard_label: "Utiliser la classe standard EN 13383 pour la sous-couche",
+        underlayer_family_label: "Famille personnalisée de sous-couche :",
+        family_auto: "Automatique",
+        family_hma: "HMA",
+        family_lma: "LMA",
+        family_cp: "CP",
+        button_calculate: "Calculer la carapace",
+        button_download: "Télécharger le Rapport",
+        button_copy: "Copier le Rapport",
+        copied: "Rapport copié",
+        downloaded: "Rapport téléchargé",
+        report_heading: "Rapport Technique",
+        footer: "Tous les calculs sont exécutés localement dans ce navigateur.",
+        trunk_card: "Carapace du Tronc",
+        head_card: "Carapace de la Tête",
+        block_weight: "Poids du Bloc",
+        mass: "Masse",
+        nominal_dimension: "Dimension Nominale",
+        underlayer_grading: "Classe de Sous-Couche",
+        required_wc: "Wc Requis",
+        report_title: "RAPPORT TECHNIQUE : DIMENSIONNEMENT DE LA CARAPACE ET DE LA SOUS-COUCHE DU BRISE-LAMES",
+        methodology: "Méthodologie :",
+        section_input: "1. PARAMÈTRES D'ENTRÉE",
+        section_intermediate: "2. PARAMÈTRES INTERMÉDIAIRES",
+        section_armor_trunk: "3. RÉSULTATS DE LA CARAPACE - TRONC",
+        section_underlayer_trunk: "4. RÉSULTATS DE LA SOUS-COUCHE - TRONC",
+        section_armor_head: "5. RÉSULTATS DE LA CARAPACE - TÊTE (HAUTE DENSITÉ)",
+        section_underlayer_head: "6. RÉSULTATS DE LA SOUS-COUCHE - TÊTE",
+        input_hs: "Hs (Hauteur significative de vague)",
+        input_tm: "Tm (Période moyenne de vague)",
+        input_nz: "Nombre de vagues (Nz)",
+        input_nod: "Nod (Endommagement)",
+        input_wc: "Wc du tronc (poids volumique du béton)",
+        input_ww: "Ww (poids volumique de l'eau)",
+        input_delta: "Densité relative D=(Wc/Ww)-1",
+        input_slope: "Talus de l'ouvrage (TRONC/TÊTE)",
+        input_porosity_cubes: "Porosité (Cubes)",
+        input_porosity_rock: "Porosité (Couche d'enrochement)",
+        inter_l0: "Longueur d'onde (L0)",
+        inter_k0: "Nombre d'onde (k0 = 2*pi/L0)",
+        inter_s0m: "Raideur de vague (s0m = Hs/L0)",
+        inter_storm_duration: "Durée de tempête (h)",
+        inter_ns_trunk: "Nombre de stabilité TRONC (Ns)",
+        inter_ns_head: "Nombre de stabilité TÊTE (Ns)",
+        armor_weight: "POIDS DU BLOC (W)",
+        armor_mass: "Masse (t)",
+        armor_dn: "Dimension nominale (Dn)",
+        armor_vol_dn3: "Volume = Dn^3 (V)",
+        armor_vol_antifer: "Volume = 1.0247 * H^3 (V)",
+        armor_h: "Hauteur du bloc (H)",
+        armor_b: "Largeur supérieure du bloc (B)",
+        armor_a: "Largeur de base du bloc (A)",
+        armor_kd_trunk: "KD_TRONC (équivalent)",
+        armor_kd_head: "KD_TÊTE (équivalent)",
+        armor_r1: "Épaisseur de la double couche (r1)",
+        armor_packing: "Densité de pose, d [u/100m2]",
+        under_target: "Cible théorique (W/10)",
+        under_grading: "Classe d'enrochement adoptée",
+        under_m50: "M50 représentatif",
+        under_nll: "Limite nominale inférieure (NLL)",
+        under_nul: "Limite nominale supérieure (NUL)",
+        under_ell: "Limite extrême inférieure (ELL)",
+        under_eul: "Limite extrême supérieure (EUL)",
+        under_dn: "Diamètre nominal (Dn_enroch)",
+        under_r2: "Épaisseur de la double couche (r2)",
+        under_f2: "Densité, f2 [enroch/100m2]",
+        under_custom_family: "Famille personnalisée de base",
+        under_custom_ratio: "Rapport personnalisé R=NUL/NLL",
+        head_note: "*Conserve le même Dn et le même talus que le tronc*",
+        head_ratio: "Rapport de stabilité (Kd_T/Kd_H)",
+        head_required_wc: "Poids volumique de béton requis (Wc)"
+      }
+    };
+
+    const FORMULA_NAMES = {
+      en: {
+        display: {
+          1: "Van der Meer (1988a) - Simple Cubes (Slope 2.0:1)",
+          2: "Van Der Meer (1988a) - Simple Cubes (Slope 1.5:1)",
+          3: "Chegini-Aghtouman (2006) - Antifer (Slope 2:1)",
+          4: "Chegini-Aghtouman (2006) - Antifer (Slope 1.5:1)"
+        },
+        combo: {
+          1: "1. Cubes (Slope 2.0:1) - Van der Meer",
+          2: "2. Cubes (Slope 1.5:1) - Van der Meer",
+          3: "3. Antifer (Slope 2.0:1) - Chegini",
+          4: "4. Antifer (Slope 1.5:1) - Chegini"
+        }
+      },
+      pt: {
+        display: {
+          1: "Van der Meer (1988a) - Cubos Simples (Talude 2.0:1)",
+          2: "Van der Meer (1988a) - Cubos Simples (Talude 1.5:1)",
+          3: "Chegini-Aghtouman (2006) - Antifer (Talude 2.0:1)",
+          4: "Chegini-Aghtouman (2006) - Antifer (Talude 1.5:1)"
+        },
+        combo: {
+          1: "1. Cubos (Talude 2.0:1) - Van der Meer",
+          2: "2. Cubos (Talude 1.5:1) - Van der Meer",
+          3: "3. Antifer (Talude 2.0:1) - Chegini",
+          4: "4. Antifer (Talude 1.5:1) - Chegini"
+        }
+      },
+      fr: {
+        display: {
+          1: "Van der Meer (1988a) - Cubes Simples (Talus 2.0:1)",
+          2: "Van der Meer (1988a) - Cubes Simples (Talus 1.5:1)",
+          3: "Chegini-Aghtouman (2006) - Antifer (Talus 2.0:1)",
+          4: "Chegini-Aghtouman (2006) - Antifer (Talus 1.5:1)"
+        },
+        combo: {
+          1: "1. Cubes (Talus 2.0:1) - Van der Meer",
+          2: "2. Cubes (Talus 1.5:1) - Van der Meer",
+          3: "3. Antifer (Talus 2.0:1) - Chegini",
+          4: "4. Antifer (Talus 1.5:1) - Chegini"
+        }
+      }
+    };
+
+    const $ = (id) => document.getElementById(id);
+    let currentLanguage = "en";
+    let lastResults = null;
+    let lastReport = "";
+    let statusTimer = null;
+
+    function gradingFamily(name) {
+      if (name.startsWith("HMA")) return "HMA";
+      if (name.startsWith("LMA")) return "LMA";
+      if (name.startsWith("CP")) return "CP";
+      return "UNKNOWN";
+    }
+
+    function getFamilyGradings(family) {
+      return STANDARD_GRADINGS
+        .filter((item) => gradingFamily(item.name) === family)
+        .slice()
+        .sort((a, b) => a.M50_kg - b.M50_kg);
+    }
+
+    function selectCustomFamily(targetMassKg) {
+      const safeMass = Math.max(targetMassKg, 1e-9);
+      let bestScore = Number.MAX_VALUE;
+      let bestFamily = "LMA";
+
+      for (const grading of STANDARD_GRADINGS) {
+        const family = gradingFamily(grading.name);
+        if (family === "UNKNOWN") continue;
+
+        let score = Math.abs(Math.log(safeMass) - Math.log(Math.max(grading.M50_kg, 1e-9)));
+        if (family === "CP") score += 0.08;
+
+        if (score < bestScore) {
+          bestScore = score;
+          bestFamily = family;
+        }
+      }
+      return bestFamily;
+    }
+
+    function interpolateFamilyRatio(targetMassKg, family) {
+      const familyGradings = getFamilyGradings(family);
+      if (familyGradings.length === 0) {
+        return { ratio: 3.0, note: "fallback ratio R=NUL/NLL = 3.0 (no family data)" };
+      }
+
+      const x = familyGradings.map((item) => Math.log(Math.max(item.M50_kg, 1e-9)));
+      const y = familyGradings.map((item) => Math.log(Math.max(item.NUL_kg / item.NLL_kg, 1.0 + 1e-9)));
+      const xt = Math.log(Math.max(targetMassKg, 1e-9));
+
+      if (familyGradings.length === 1) {
+        return {
+          ratio: familyGradings[0].NUL_kg / familyGradings[0].NLL_kg,
+          note: `${family} family single-point ratio used`
+        };
+      }
+
+      if (xt <= x[0]) {
+        return {
+          ratio: Math.exp(y[0]),
+          note: `${family} family ratio clamped to lower-end class ${familyGradings[0].name}`
+        };
+      }
+
+      const last = familyGradings.length - 1;
+      if (xt >= x[last]) {
+        return {
+          ratio: Math.exp(y[last]),
+          note: `${family} family ratio clamped to upper-end class ${familyGradings[last].name}`
+        };
+      }
+
+      for (let index = 0; index < last; index += 1) {
+        if (xt >= x[index] && xt <= x[index + 1]) {
+          const interpolation = (xt - x[index]) / (x[index + 1] - x[index]);
+          const logRatio = y[index] + interpolation * (y[index + 1] - y[index]);
+          return {
+            ratio: Math.exp(logRatio),
+            note: `${family} interpolated between ${familyGradings[index].name} and ${familyGradings[index + 1].name}`
+          };
+        }
+      }
+
+      return {
+        ratio: Math.exp(y[last]),
+        note: `${family} family ratio fallback to upper-end class ${familyGradings[last].name}`
+      };
+    }
+
+    function calculateUnderlayerParams(armorWeight, params) {
+      const targetWeight = armorWeight / 10.0;
+      const targetMassKg = (targetWeight * 1000.0) / G;
+      const result = {
+        grading_name: "",
+        target_W: targetWeight,
+        target_M50_kg: targetMassKg,
+        M50_kg: 0,
+        ELL_kg: 0,
+        EUL_kg: 0,
+        NLL_kg: 0,
+        NUL_kg: 0,
+        W_mean_kn: 0,
+        Dn_rock: 0,
+        r2: 0,
+        f2: 0,
+        W_rock_spec: W_ROCK_SPEC,
+        used_custom_interpolation: false,
+        custom_family: "",
+        custom_ratio_nul_nll: 0,
+        custom_ratio_note: ""
+      };
+
+      if (params.use_standard_underlayer_grading) {
+        let selected = null;
+        let minimumRangeWidth = Number.MAX_VALUE;
+
+        for (const grading of STANDARD_GRADINGS) {
+          if (targetMassKg > grading.NLL_kg && targetMassKg < grading.NUL_kg) {
+            const currentRange = grading.NUL_kg - grading.NLL_kg;
+            if (currentRange < minimumRangeWidth) {
+              minimumRangeWidth = currentRange;
+              selected = grading;
+            }
+          }
+        }
+
+        if (selected) {
+          result.grading_name = selected.name;
+          result.M50_kg = selected.M50_kg;
+          result.NLL_kg = selected.NLL_kg;
+          result.NUL_kg = selected.NUL_kg;
+        }
+      }
+
+      if (!params.use_standard_underlayer_grading || result.NUL_kg <= result.NLL_kg) {
+        let family = String(params.custom_underlayer_family || "AUTO").toUpperCase();
+        if (!["HMA", "LMA", "CP"].includes(family)) family = selectCustomFamily(targetMassKg);
+
+        const interpolation = interpolateFamilyRatio(targetMassKg, family);
+        const ratioNulNll = Math.max(interpolation.ratio, 1.01);
+        const nllKg = (2.0 * targetMassKg) / (1.0 + ratioNulNll);
+        const nulKg = ratioNulNll * nllKg;
+
+        result.grading_name = "Custom Grading";
+        result.M50_kg = targetMassKg;
+        result.NLL_kg = nllKg;
+        result.NUL_kg = nulKg;
+        result.used_custom_interpolation = true;
+        result.custom_family = family;
+        result.custom_ratio_nul_nll = ratioNulNll;
+        result.custom_ratio_note = interpolation.note;
+      }
+
+      result.ELL_kg = 0.7 * result.NLL_kg;
+      result.EUL_kg = 1.5 * result.NUL_kg;
+      result.W_mean_kn = (result.M50_kg * G) / 1000.0;
+      const referenceWeightKn = result.used_custom_interpolation ? targetWeight : result.W_mean_kn;
+      result.Dn_rock = Math.pow(referenceWeightKn / W_ROCK_SPEC, 1.0 / 3.0);
+      result.r2 = 2.0 * result.Dn_rock;
+      result.f2 = 100.0 * 2.0 * 1.0 * (1.0 - P_ROCK) / Math.pow(result.Dn_rock, 2);
+
+      return result;
+    }
+
+    function solve(formulaId, params) {
+      const coefficients = FORMULAS[formulaId];
+      if (!coefficients) throw new Error("Invalid Formula ID");
+
+      const L0 = (G * Math.pow(params.Tm, 2)) / (2 * Math.PI);
+      const k0 = (2 * Math.PI) / L0;
+      const s0m = params.Hs / L0;
+      const sm = s0m;
+      const Nz = params.Number_of_Waves;
+      const stormDurationHr = (Nz * params.Tm) / 3600.0;
+      const deltaTrunk = (params.Wc / params.Ww) - 1.0;
+
+      const termDamage = Math.pow(params.Nod, coefficients.k2);
+      const termWaves = Math.pow(Nz, coefficients.k3);
+      const damageWaveRatio = termDamage / termWaves;
+      const scaledTerm = coefficients.k1 * damageWaveRatio;
+      const invF = scaledTerm + coefficients.k4;
+      const steepnessFactor = Math.pow(s0m, -coefficients.k5);
+      const nsTrunk = invF * steepnessFactor;
+
+      const Dn = params.Hs / (deltaTrunk * nsTrunk);
+      const weightTrunk = params.Wc * Math.pow(Dn, 3);
+      const packingDensityTrunk = 100.0 * 2.0 * 1.1 * (1.0 - P_CUBES) / Math.pow(Dn, 2);
+      const kdTrunkEquivalent = (params.Wc * Math.pow(params.Hs, 3)) /
+        (weightTrunk * Math.pow(deltaTrunk, 3) * coefficients.slope_ratio);
+      const underlayerTrunk = calculateUnderlayerParams(weightTrunk, params);
+
+      const kdRatio = KD_RATIO_FIXED;
+      const kdHeadDerived = kdTrunkEquivalent / kdRatio;
+      const deltaHead = deltaTrunk * Math.pow(kdRatio, 1.0 / 3.0);
+      const wcHead = params.Ww * (deltaHead + 1.0);
+      const weightHead = weightTrunk * (wcHead / params.Wc);
+      const nsHead = params.Hs / (deltaHead * Dn);
+      const packingDensityHead = 100.0 * 2.0 * 1.1 * (1.0 - P_CUBES) / Math.pow(Dn, 2);
+      const underlayerHead = calculateUnderlayerParams(weightHead, params);
+
+      const r1 = 2.0 * 1.1 * Dn;
+      const volumeTrunk = weightTrunk / params.Wc;
+      const hTrunk = Math.pow(volumeTrunk / 1.0247, 1.0 / 3.0);
+      const aTrunk = 1.086 * hTrunk;
+      const bTrunk = 1.005 * hTrunk;
+      const volumeHead = weightHead / wcHead;
+      const hHead = Math.pow(volumeHead / 1.0247, 1.0 / 3.0);
+      const aHead = 1.086 * hHead;
+      const bHead = 1.005 * hHead;
+
+      return {
+        inputs: { ...params },
+        coefficients: { ...coefficients },
+        intermediate: {
+          L0,
+          k0,
+          s0m,
+          sm,
+          Nz,
+          Storm_Duration_hr: stormDurationHr,
+          delta: deltaTrunk,
+          Ns_trunk: nsTrunk
+        },
+        final_trunk: {
+          Ns: nsTrunk,
+          Dn,
+          W: weightTrunk,
+          Mass_tonnes: weightTrunk / G,
+          Kd: kdTrunkEquivalent,
+          r1,
+          packing_density: packingDensityTrunk,
+          dims: { H: hTrunk, A: aTrunk, B: bTrunk }
+        },
+        underlayer_trunk: underlayerTrunk,
+        final_head: {
+          Ns: nsHead,
+          Dn,
+          Kd: kdHeadDerived,
+          Kd_Ratio: kdRatio,
+          Delta_Required: deltaHead,
+          Wc_Required: wcHead,
+          W: weightHead,
+          Mass_tonnes: weightHead / G,
+          packing_density: packingDensityHead,
+          dims: { H: hHead, A: aHead, B: bHead }
+        },
+        underlayer_head: underlayerHead,
+        P_rock: P_ROCK,
+        P_cubes: P_CUBES
+      };
+    }
+
+    function fixed(value, precision) {
+      return Number(value).toFixed(precision);
+    }
+
+    function reportField(label, value, width = 38) {
+      return `   ${label.padEnd(width, " ")} : ${value}\n`;
+    }
+
+    function formatReport(results, language) {
+      const t = LANGUAGE[language];
+      const p = results.inputs;
+      const c = results.coefficients;
+      const i = results.intermediate;
+      const ft = results.final_trunk;
+      const ut = results.underlayer_trunk;
+      const fh = results.final_head;
+      const uh = results.underlayer_head;
+
+      const armorVolumeTrunk = c.type === "Antifer" ? 1.0247 * Math.pow(ft.dims.H, 3) : Math.pow(ft.Dn, 3);
+      const armorVolumeHead = c.type === "Antifer" ? 1.0247 * Math.pow(fh.dims.H, 3) : Math.pow(fh.Dn, 3);
+      const methodologyName = FORMULA_NAMES[language].display[p.Formula_ID];
+      let report = "";
+
+      report += "=".repeat(80) + "\n";
+      report += `    ${t.report_title}\n`;
+      report += "=".repeat(80) + "\n";
+      report += `${t.methodology} ${methodologyName}\n`;
+      report += "-".repeat(80) + "\n";
+
+      report += `${t.section_input}\n`;
+      report += reportField(t.input_hs, `${fixed(p.Hs, 2)} m`);
+      report += reportField(t.input_tm, `${fixed(p.Tm, 2)} s`);
+      report += reportField(t.input_nz, fixed(p.Number_of_Waves, 0));
+      report += reportField(t.input_nod, fixed(p.Nod, 2));
+      report += reportField(t.input_wc, `${fixed(p.Wc, 2)} kN/m3`);
+      report += reportField(t.input_ww, `${fixed(p.Ww, 2)} kN/m3`);
+      report += reportField(t.input_delta, fixed(i.delta, 4));
+      report += reportField(t.input_slope, `${fixed(c.slope_ratio, 1)}:1`);
+      report += reportField(t.input_porosity_cubes, `${fixed(results.P_cubes * 100, 0)}%`);
+      report += reportField(t.input_porosity_rock, `${fixed(results.P_rock * 100, 0)}%`);
+      report += "-".repeat(80) + "\n";
+
+      report += `${t.section_intermediate}\n`;
+      report += reportField(t.inter_l0, `${fixed(i.L0, 2)} m`);
+      report += reportField(t.inter_k0, fixed(i.k0, 4));
+      report += reportField(t.inter_s0m, fixed(i.s0m, 4));
+      report += reportField(t.inter_storm_duration, `${fixed(i.Storm_Duration_hr, 3)} h`);
+      report += reportField(t.inter_ns_trunk, fixed(i.Ns_trunk, 4));
+      report += reportField(t.inter_ns_head, fixed(fh.Ns, 4));
+      report += "-".repeat(80) + "\n";
+
+      report += `${t.section_armor_trunk}\n`;
+      report += reportField(t.armor_weight, `${fixed(ft.W, 2)} kN`);
+      report += reportField(t.armor_mass, `${fixed(ft.Mass_tonnes, 2)} t`);
+      report += reportField(t.armor_dn, `${fixed(ft.Dn, 3)} m`);
+      if (c.type === "Cubes") {
+        report += reportField(t.armor_vol_dn3, `${fixed(armorVolumeTrunk, 3)} m3`);
+      } else {
+        report += reportField(t.armor_vol_antifer, `${fixed(armorVolumeTrunk, 3)} m3`);
+        report += reportField(t.armor_h, `${fixed(ft.dims.H, 3)} m`);
+        report += reportField(t.armor_b, `${fixed(ft.dims.B, 3)} m`);
+        report += reportField(t.armor_a, `${fixed(ft.dims.A, 3)} m`);
+      }
+      report += reportField(t.armor_kd_trunk, fixed(ft.Kd, 2));
+      report += reportField(t.armor_r1, `${fixed(ft.r1, 2)} m`);
+      report += reportField(t.armor_packing, fixed(ft.packing_density, 2));
+      report += "\n";
+
+      report += `${t.section_underlayer_trunk}\n`;
+      report += reportField(t.under_target, `${fixed(ut.target_W, 2)} kN (${fixed(ut.target_M50_kg, 1)} kg)`);
+      report += reportField(t.under_grading, ut.grading_name);
+      report += reportField(t.under_m50, `${fixed(ut.M50_kg, 1)} kg`);
+      report += reportField(t.under_nll, `${fixed(ut.NLL_kg, 1)} kg`);
+      report += reportField(t.under_nul, `${fixed(ut.NUL_kg, 1)} kg`);
+      report += reportField(t.under_ell, `${fixed(ut.ELL_kg, 1)} kg`);
+      report += reportField(t.under_eul, `${fixed(ut.EUL_kg, 1)} kg`);
+      report += reportField(t.under_dn, `${fixed(ut.Dn_rock, 3)} m`);
+      report += reportField(t.under_r2, `${fixed(ut.r2, 2)} m`);
+      report += reportField(t.under_f2, fixed(ut.f2, 2));
+      if (ut.used_custom_interpolation) {
+        report += reportField(t.under_custom_family, ut.custom_family);
+        report += reportField(t.under_custom_ratio, fixed(ut.custom_ratio_nul_nll, 3));
+      }
+      report += "-".repeat(80) + "\n";
+
+      report += `${t.section_armor_head}\n`;
+      report += `   ${t.head_note}\n`;
+      report += reportField(t.head_ratio, fixed(fh.Kd_Ratio, 2));
+      report += reportField(t.armor_dn, `${fixed(fh.Dn, 3)} m`);
+      if (c.type === "Cubes") {
+        report += reportField(t.armor_vol_dn3, `${fixed(armorVolumeHead, 3)} m3`);
+      } else {
+        report += reportField(t.armor_vol_antifer, `${fixed(armorVolumeHead, 3)} m3`);
+        report += reportField(t.armor_h, `${fixed(fh.dims.H, 3)} m`);
+        report += reportField(t.armor_b, `${fixed(fh.dims.B, 3)} m`);
+        report += reportField(t.armor_a, `${fixed(fh.dims.A, 3)} m`);
+      }
+      report += reportField(t.armor_kd_head, fixed(fh.Kd, 2));
+      report += reportField(t.head_required_wc, `${fixed(fh.Wc_Required, 2)} kN/m3`);
+      report += reportField(t.armor_weight, `${fixed(fh.W, 2)} kN`);
+      report += reportField(t.armor_mass, `${fixed(fh.Mass_tonnes, 2)} t`);
+      report += reportField(t.armor_packing, fixed(fh.packing_density, 2));
+      report += "\n";
+
+      report += `${t.section_underlayer_head}\n`;
+      report += reportField(t.under_target, `${fixed(uh.target_W, 2)} kN (${fixed(uh.target_M50_kg, 1)} kg)`);
+      report += reportField(t.under_grading, uh.grading_name);
+      report += reportField(t.under_m50, `${fixed(uh.M50_kg, 1)} kg`);
+      report += reportField(t.under_nll, `${fixed(uh.NLL_kg, 1)} kg`);
+      report += reportField(t.under_nul, `${fixed(uh.NUL_kg, 1)} kg`);
+      report += reportField(t.under_ell, `${fixed(uh.ELL_kg, 1)} kg`);
+      report += reportField(t.under_eul, `${fixed(uh.EUL_kg, 1)} kg`);
+      report += reportField(t.under_dn, `${fixed(uh.Dn_rock, 3)} m`);
+      report += reportField(t.under_r2, `${fixed(uh.r2, 2)} m`);
+      report += reportField(t.under_f2, fixed(uh.f2, 2));
+      if (uh.used_custom_interpolation) {
+        report += reportField(t.under_custom_family, uh.custom_family);
+        report += reportField(t.under_custom_ratio, fixed(uh.custom_ratio_nul_nll, 3));
+      }
+      report += "=".repeat(80) + "\n";
+
+      return report;
+    }
+
+    function readNumber(id) {
+      const value = Number($(id).value.trim());
+      return Number.isNaN(value) ? 0 : value;
+    }
+
+    function getInputs() {
+      const familyMap = { auto: "AUTO", hma: "HMA", lma: "LMA", cp: "CP" };
+      return {
+        Hs: readNumber("hs"),
+        Tm: readNumber("tm"),
+        Number_of_Waves: readNumber("nz"),
+        Nod: readNumber("nod"),
+        Wc: readNumber("wc"),
+        Ww: DEFAULTS.Ww,
+        Formula_ID: Number($("formula").value),
+        use_standard_underlayer_grading: $("standardUnderlayer").checked,
+        custom_underlayer_family: familyMap[$("family").value] || "AUTO"
+      };
+    }
+
+    function showError(message) {
+      const bar = $("errorBar");
+      bar.textContent = message;
+      bar.classList.add("visible");
+    }
+
+    function clearError() {
+      const bar = $("errorBar");
+      bar.textContent = "";
+      bar.classList.remove("visible");
+    }
+
+    function showStatus(message) {
+      clearTimeout(statusTimer);
+      $("statusText").textContent = message;
+      statusTimer = setTimeout(() => { $("statusText").textContent = ""; }, 2200);
+    }
+
+    function renderSummary(results) {
+      const ft = results.final_trunk;
+      const fh = results.final_head;
+      $("trunkWeight").textContent = `${fixed(ft.W, 2)} kN`;
+      $("trunkMass").textContent = `${fixed(ft.Mass_tonnes, 2)} t`;
+      $("trunkDn").textContent = `${fixed(ft.Dn, 3)} m`;
+      $("trunkGrading").textContent = results.underlayer_trunk.grading_name;
+      $("headWeight").textContent = `${fixed(fh.W, 2)} kN`;
+      $("headMass").textContent = `${fixed(fh.Mass_tonnes, 2)} t`;
+      $("headWc").textContent = `${fixed(fh.Wc_Required, 2)} kN/m3`;
+      $("headGrading").textContent = results.underlayer_head.grading_name;
+    }
+
+    function calculate() {
+      clearError();
+      const t = LANGUAGE[currentLanguage];
+      const inputs = getInputs();
+
+      if (inputs.Hs <= 0 || inputs.Tm <= 0 || inputs.Number_of_Waves <= 0 || inputs.Nod < 0 || inputs.Wc <= 0) {
+        showError(t.input_error_positive);
+        return false;
+      }
+
+      try {
+        lastResults = solve(inputs.Formula_ID, inputs);
+        lastReport = formatReport(lastResults, currentLanguage);
+        renderSummary(lastResults);
+        $("reportOutput").textContent = lastReport;
+        return true;
+      } catch (error) {
+        showError(`${t.calc_error_title}: ${error instanceof Error ? error.message : String(error)}`);
+        return false;
+      }
+    }
+
+    function populateFormulaSelect() {
+      const select = $("formula");
+      const selected = Number(select.value) || DEFAULTS.Formula_ID;
+      select.replaceChildren();
+      for (let id = 1; id <= 4; id += 1) {
+        const option = document.createElement("option");
+        option.value = String(id);
+        option.textContent = FORMULA_NAMES[currentLanguage].combo[id];
+        select.appendChild(option);
+      }
+      select.value = String(selected);
+    }
+
+    function populateFamilySelect() {
+      const select = $("family");
+      const selected = select.value || "auto";
+      const t = LANGUAGE[currentLanguage];
+      const items = [
+        ["auto", t.family_auto],
+        ["hma", t.family_hma],
+        ["lma", t.family_lma],
+        ["cp", t.family_cp]
+      ];
+      select.replaceChildren();
+      for (const [value, label] of items) {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = label;
+        select.appendChild(option);
+      }
+      select.value = selected;
+    }
+
+    function updateUnderlayerControls() {
+      $("family").disabled = $("standardUnderlayer").checked;
+      $("familyLabel").style.opacity = $("standardUnderlayer").checked ? "0.48" : "1";
+    }
+
+    function applyLanguage(language) {
+      currentLanguage = LANGUAGE[language] ? language : "en";
+      const t = LANGUAGE[currentLanguage];
+      document.documentElement.lang = currentLanguage;
+      document.title = t.window_title;
+      $("appTitle").textContent = t.window_title;
+      $("appSubtitle").textContent = t.subtitle;
+      $("languageLabel").textContent = t.language_label;
+      $("inputPanelTitle").textContent = t.input_panel_title;
+      $("resultsPanelTitle").textContent = t.results_panel_title;
+      $("hsLabel").textContent = t.hs_label;
+      $("tmLabel").textContent = t.tm_label;
+      $("nzLabel").textContent = t.nz_label;
+      $("nodLabel").textContent = t.nod_label;
+      $("wcLabel").textContent = t.wc_label;
+      $("formulaLabel").textContent = t.formula_label;
+      $("standardUnderlayerLabel").textContent = t.underlayer_standard_label;
+      $("familyLabel").textContent = t.underlayer_family_label;
+      $("calculateButton").textContent = t.button_calculate;
+      $("downloadButton").textContent = t.button_download;
+      $("copyButton").textContent = t.button_copy;
+      $("trunkCardTitle").textContent = t.trunk_card;
+      $("headCardTitle").textContent = t.head_card;
+      $("trunkWeightLabel").textContent = t.block_weight;
+      $("trunkMassLabel").textContent = t.mass;
+      $("trunkDnLabel").textContent = t.nominal_dimension;
+      $("trunkGradingLabel").textContent = t.underlayer_grading;
+      $("headWeightLabel").textContent = t.block_weight;
+      $("headMassLabel").textContent = t.mass;
+      $("headWcLabel").textContent = t.required_wc;
+      $("headGradingLabel").textContent = t.underlayer_grading;
+      $("reportTitle").textContent = t.report_heading;
+      $("footerText").textContent = t.footer;
+      populateFormulaSelect();
+      populateFamilySelect();
+      updateUnderlayerControls();
+
+      if (lastResults) {
+        lastReport = formatReport(lastResults, currentLanguage);
+        $("reportOutput").textContent = lastReport;
+        renderSummary(lastResults);
+      }
+    }
+
+    function downloadReport() {
+      if (!lastReport && !calculate()) return;
+      const blob = new Blob([lastReport], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "output.txt";
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+      showStatus(LANGUAGE[currentLanguage].downloaded);
+    }
+
+    async function copyReport() {
+      if (!lastReport && !calculate()) return;
+      try {
+        await navigator.clipboard.writeText(lastReport);
+      } catch {
+        const textArea = document.createElement("textarea");
+        textArea.value = lastReport;
+        textArea.style.position = "fixed";
+        textArea.style.opacity = "0";
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        textArea.remove();
+      }
+      showStatus(LANGUAGE[currentLanguage].copied);
+    }
+
+    function configureNonNegativeInputs() {
+      for (const id of ["hs", "tm", "nz", "nod", "wc"]) {
+        const input = $(id);
+        input.min = "0";
+
+        input.addEventListener("keydown", (event) => {
+          if (event.key === "-" || event.key === "−") {
+            event.preventDefault();
+          }
+        });
+
+        input.addEventListener("input", () => {
+          if (input.value === "") return;
+          const value = Number(input.value);
+          if (Number.isFinite(value) && value < 0) {
+            input.value = "0";
+          }
+        });
+
+        input.addEventListener("blur", () => {
+          if (input.value === "") return;
+          const value = Number(input.value);
+          if (!Number.isFinite(value) || value < 0) {
+            input.value = "0";
+          }
+        });
+      }
+    }
+
+    configureNonNegativeInputs();
+
+    $("calculatorForm").addEventListener("submit", (event) => {
+      event.preventDefault();
+      calculate();
+    });
+
+    $("language").addEventListener("change", (event) => applyLanguage(event.target.value));
+    $("standardUnderlayer").addEventListener("change", updateUnderlayerControls);
+    $("downloadButton").addEventListener("click", downloadReport);
+    $("copyButton").addEventListener("click", copyReport);
+
+    applyLanguage("en");
+    calculate();
+  </script>
+</body>
+</html>
